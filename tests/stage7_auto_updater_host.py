@@ -77,7 +77,7 @@ public class AutoUpdateAndroidTest {
  @Before public void setup()throws Exception{
   app=RuntimeEnvironment.getApplication();prefs=app.getSharedPreferences("BTTV",0);prefs.edit().clear().commit();calls=new AtomicInteger();status=200;
   ReflectionHelpers.setStaticField(Build.class,"SUPPORTED_ABIS",new String[]{"arm64-v8a","armeabi-v7a"});
-  Signature signer=new Signature(new byte[]{1,2,3});PackageInfo p=new PackageInfo();p.packageName=UpdateRelease.PACKAGE;p.versionName="0.43.2-beta";p.setLongVersionCode(1208000338L);
+  Signature signer=new Signature(new byte[]{1,2,3});PackageInfo p=new PackageInfo();p.packageName=UpdateRelease.PACKAGE;p.versionName="0.44.0-beta";p.setLongVersionCode(1208000338L);
   p.applicationInfo=app.getApplicationInfo();p.signingInfo=new SigningInfo();((ShadowSigningInfo)Shadow.extract(p.signingInfo)).setSignatures(new Signature[]{signer});
   ((ShadowPackageManager)Shadow.extract(app.getPackageManager())).installPackage(p);
   byte[] b={1};JSONObject c=UpdaterHostTest.compatibility(b).put("signerSha256",UpdateVerifier.installed(app).signer);body=UpdaterHostTest.release(c,b).toString();

@@ -99,7 +99,7 @@ available in Git history for later staged ports.
 
 - The application package remains the Twitch 31.2.0 value
   `tv.twitch.android.app`. The manifest patch adds BTTV version
-  `0.43.2-beta` / version code `01208000338` from `bttv.manifest.json` without
+  `0.44.0-beta` / version code `01208000338` from `bttv.manifest.json` without
   reviving the obsolete 19.0.1 side-by-side package rename.
 - Package-derived permissions and provider authorities remain on
   `tv.twitch.android.app`, matching the root package. Component class names and

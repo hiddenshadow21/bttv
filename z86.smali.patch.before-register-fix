@@ -1,0 +1,28 @@
+diff --git a/smali_classes2/pb6.smali b/smali_classes2/pb6.smali
+--- a/smali_classes2/pb6.smali
++++ b/smali_classes2/pb6.smali
+@@ -1179,9 +1179,9 @@
+ 
+ 
+ # virtual methods
+ .method public final a(Ltv/twitch/android/models/Tuid;Lx5o;Ljava/lang/String;Lu76;)La56;
+-    .locals 26
++    .locals 28
+ 
+     .line 1
+     move-object/from16 v0, p0
+ 
+@@ -2586,8 +2586,13 @@
+     return-object v16
+ 
+     .line 667
+     :cond_21
++    move-object/from16 v26, v5
++    invoke-virtual {p1}, Ltv/twitch/android/models/Tuid;->toString()Ljava/lang/String;
++    move-result-object v27
++    invoke-static/range {v26 .. v27}, Lbttv/emote/LiveEmoteBridge;->rewrite(Ljava/util/ArrayList;Ljava/lang/String;)Ljava/util/ArrayList;
++    move-result-object v5
+     invoke-static {v8, v5}, Lpb6;->d(Llb6;Ljava/util/ArrayList;)Lkotlin/Pair;
+ 
+     .line 668
+     .line 669

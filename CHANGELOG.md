@@ -7,7 +7,7 @@
 - Restore manual and optional automatic update checking with verified, user-confirmed updates.
 - Update Docker/manual builds, input validation, APK verification and third-party notices.
 
-# 0.43.2-beta - authored by [@Zerwin](https://github.com/Zerwin)
+# 0.44.0-beta - authored by [@Zerwin](https://github.com/Zerwin)
 - fix issue which prevented bttv-settings from being persisted
 - fix broken split chat
 

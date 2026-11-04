@@ -27,6 +27,64 @@ def run(*args):
     return subprocess.check_output([str(a) for a in args], stderr=subprocess.STDOUT).decode()
 
 
+# BTTV318_INPUT_DERIVED_NATIVE_INVENTORY_V1
+# Compare the output to the *pinned* Twitch input rather than the native counts
+# of Twitch 31.2.0. The caller has already validated source with inspect().
+def verify_twitch318_native_inventory(output_zip, source, output_names, native_counts):
+    required_abis = ("arm64-v8a", "armeabi-v7a")
+    selected = ("base.apk", "split_config.arm64_v8a.apk", "split_config.armeabi_v7a.apk")
+    original_libraries = {abi: {} for abi in required_abis}
+    with zipfile.ZipFile(source) as source_bundle:
+        for apk_name in selected:
+            if apk_name not in source_bundle.namelist():
+                raise ValueError("Missing validated source split: " + apk_name)
+            with zipfile.ZipFile(io.BytesIO(source_bundle.read(apk_name))) as source_apk:
+                for entry in source_apk.infolist():
+                    name = entry.filename
+                    if not name.endswith(".so") or not name.startswith("lib/"):
+                        continue
+                    parts = name.split("/")
+                    if len(parts) != 3 or parts[1] not in required_abis:
+                        continue
+                    abi = parts[1]
+                    fingerprint = (entry.file_size, hashlib.sha256(source_apk.read(name)).digest())
+                    previous = original_libraries[abi].setdefault(name, fingerprint)
+                    if previous != fingerprint:
+                        raise ValueError("Conflicting source native library across splits: " + name)
+
+    for abi in required_abis:
+        prefix = "lib/" + abi + "/"
+        original = original_libraries[abi]
+        built = {name for name in output_names
+                 if name.startswith(prefix) and name.endswith(".so")}
+        if not original:
+            raise ValueError("Input lacks required native ABI libraries: " + abi)
+        # Buildsource adds this one BTTV-owned library to each architecture.
+        # Original Twitch libraries must remain byte-for-byte unchanged.
+        glide = prefix + "libglide-webp.so"
+        expected = set(original) | {glide}
+        missing = sorted(expected - built)
+        extra = sorted(built - expected)
+        if missing or extra or native_counts.get(abi, 0) != len(built):
+            raise ValueError(
+                "Native inventory mismatch for " + abi +
+                ": input=" + str(len(original)) +
+                ", expected_output=" + str(len(expected)) +
+                ", actual_output=" + str(len(built)) +
+                ", missing=" + repr(missing[:12]) +
+                ", unexpected=" + repr(extra[:12]))
+        for name, (original_size, original_hash) in original.items():
+            compiled_info = output_zip.getinfo(name)
+            if compiled_info.file_size != original_size or hashlib.sha256(output_zip.read(name)).digest() != original_hash:
+                raise ValueError("Original Twitch native library changed: " + name)
+        # The calling verifier independently checks ELF type, architecture,
+        # ZIP_STORED compression and 4096-byte native library alignment.
+        print("Verified native inventory for " + abi +
+              ": original=" + str(len(original)) +
+              ", output=" + str(len(built)) +
+              ", BTTV Glide-WebP=" + ("present" if glide in built else "MISSING"),
+              flush=True)
+
 def verify(apk, source, sdk=None, expected_signer=None, allow_test=False):
     from prepare_twitch_input import inspect
     inspect(source)
@@ -112,18 +170,10 @@ def verify(apk, source, sdk=None, expected_signer=None, allow_test=False):
                 elf = (data[4], data[5], struct.unpack_from('<H', data, 18)[0])
                 if elf != ((2, 1, 183) if abi == 'arm64-v8a' else (1, 1, 40)):
                     raise ValueError("Native architecture mismatch")
-        for abi in ['arm64-v8a', 'armeabi-v7a']:
-            if native_counts.get(abi) != 39 or 'lib/' + abi + '/libglide-webp.so' not in names:
-                raise ValueError("Incomplete dual-ARM inventory")
-        with zipfile.ZipFile(source) as bundle:
-            for split, abi in [('arm64_v8a', 'arm64-v8a'), ('armeabi_v7a', 'armeabi-v7a')]:
-                with zipfile.ZipFile(io.BytesIO(bundle.read('split_config.' + split + '.apk'))) as original:
-                    libs = [n for n in original.namelist() if n.startswith('lib/' + abi + '/') and n.endswith('.so')]
-                    if len(libs) != 38 or any(z.read(n) != original.read(n) for n in libs):
-                        raise ValueError("Original Twitch native library changed")
+        verify_twitch318_native_inventory(z, source, names, native_counts)
     return dict(packageName=name, versionCode=int(code), versionName=version, minSdk=minimum,
                 targetSdk=target, signerSha256=signer, sha256=sha256(apk), sizeBytes=apk.stat().st_size,
-                standalone=True, supportedAbis=['arm64-v8a', 'armeabi-v7a'], twitchVersion='31.2.0',
+                standalone=True, supportedAbis=['arm64-v8a', 'armeabi-v7a'], twitchVersion='31.8.0',
                 dex=dex_counts, native=native_counts, authorities=authorities, v3=True, zipalign=True,
                 testSigningIdentity=(signer == TEST_SIGNER))
 

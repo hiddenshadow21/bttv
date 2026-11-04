@@ -1,0 +1,17 @@
+Sequential git apply --check --index AND git apply --index tests on 31.8.0 extracted source:
+  PASS  prior aaj replacement (xjj)
+  PASS  NEW cl2 replacement (xoz enum + NativeSettingsBridge)
+  PASS  prior f86 replacement (va6)
+  PASS  prior ffo replacement (xpo.A2 -> appendLegacy)
+  PASS  prior qt1 replacement (fv1)
+  PASS  NEW r2k replacement (qnc.q navigation)
+  PASS  prior wjf replacement (pqf)
+  PASS  NEW zy_gif_modes replacement (7 class/helper files)
+  PASS  prior zz_emote_details replacement (va6)
+
+Rebalancer v2:
+  PASS python -m py_compile
+  PASS synthetic dry-run: DEX7 near target and DEX3-6 available
+  PASS synthetic real relocation: 12 files moved and per-DEX counts within target
+
+NOT RUN: Docker build, Apktool smali compilation, device/ART runtime validation.

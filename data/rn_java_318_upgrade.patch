@@ -1,0 +1,270 @@
+diff --git a/mod/app/src/main/java/bttv/rn/RNChatExtras318.java b/mod/app/src/main/java/bttv/rn/RNChatExtras318.java
+index ba9590f..e846f29 100644
+--- a/mod/app/src/main/java/bttv/rn/RNChatExtras318.java
++++ b/mod/app/src/main/java/bttv/rn/RNChatExtras318.java
+@@ -43,70 +43,37 @@ public final class RNChatExtras318 {
+     }
+ 
+     /**
+-     * Prefix a PRIVMSG with [HH:mm] in device local time, using tmi-sent-ts.
+-     * Adjust the Twitch + BTTV emote ranges (IRC code-point offsets) so the
+-     * timestamp cannot make previously located emotes point at the wrong text.
+-     *
+-     * This deliberately skips /me CTCP ACTION messages because those have
+-     * different offset semantics. It also never changes non-PRIVMSG frames.
++     * Display the timestamp alongside the sender name, never inside the message body.
++     * The React Native chat renderer uses IRC display-name for the username label.
++     * We escape the separator with IRCv3 \s and leave the login and user-id intact.
++     * This is an RN data-level workaround, not a separate timestamp component.
+      */
+     public static String addTimestamp(String line) {
+         if (line == null || !line.startsWith("@")) return line;
+         try {
+             int tagsEnd = line.indexOf(' ');
+-            if (tagsEnd < 0) return line;
+-            int cmd = line.indexOf(" PRIVMSG #", tagsEnd);
+-            if (cmd < 0) return line;
+-            int start = line.indexOf(" :", cmd);
+-            if (start < 0) return line;
+-            start += 2;
+-            String body = line.substring(start);
+-            if (body.isEmpty() || body.charAt(0) == '\u0001') return line;
+-            if (body.matches("^\\[\\d{2}:\\d{2}\\] .*")) return line;
++            if (tagsEnd < 0 || line.indexOf(" PRIVMSG #", tagsEnd) < 0) return line;
+             String tags = line.substring(1, tagsEnd);
++            String displayName = tag(tags, "display-name");
++            if (displayName == null || displayName.isEmpty()) return line;
++            if (displayName.startsWith("[")) return line;
+             String sentMs = tag(tags, "tmi-sent-ts");
+-            long timestamp = sentMs == null ? System.currentTimeMillis() : Long.parseLong(sentMs);
+-            if (timestamp < 1_000_000_000_000L || timestamp > System.currentTimeMillis() + 86_400_000L)
+-                return line;
+-            String prefix = "[" + new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date(timestamp)) + "] ";
+-            int offset = prefix.codePointCount(0, prefix.length());
+-            String emotes = tag(tags, "emotes");
+-            if (emotes != null && !emotes.isEmpty()) {
+-                String shifted = shiftEmoteRanges(emotes, offset);
+-                if (shifted == null) return line; // Never corrupt a Twitch emote range.
+-                tags = replaceTag(tags, "emotes", shifted);
+-            }
+-            String result = "@" + tags + line.substring(tagsEnd, start) + prefix + body;
+-            if (++timestampLogs <= 3) Log.i(TAG, "React Native chat message timestamp inserted");
++            if (sentMs == null) return line;
++            long timestamp = Long.parseLong(sentMs);
++            long now = System.currentTimeMillis();
++            if (timestamp < 1_000_000_000_000L || timestamp > now + 86_400_000L) return line;
++            String prefix = "[" + new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date(timestamp)) + "]";
++            // The IRCv3 space escape is two ASCII characters, backslash and s.
++            String result = "@" + replaceTag(tags, "display-name", prefix + "\\s" + displayName)
++                    + line.substring(tagsEnd);
++            if (++timestampLogs <= 3) Log.i(TAG, "Timestamp moved to sender display label");
+             return result;
+         } catch (Throwable t) {
+-            Log.e(TAG, "Timestamp injection failed; forwarding original IRC", t);
++            Log.e(TAG, "Sender timestamp injection failed; forwarding original IRC", t);
+             return line;
+         }
+     }
+ 
+-    private static String shiftEmoteRanges(String source, int amount) {
+-        StringBuilder out = new StringBuilder(source.length() + 32);
+-        for (String group : source.split("/", -1)) {
+-            int colon = group.indexOf(':');
+-            if (colon <= 0 || colon == group.length() - 1) return null;
+-            if (out.length() > 0) out.append('/');
+-            out.append(group, 0, colon + 1);
+-            String[] ranges = group.substring(colon + 1).split(",", -1);
+-            for (int i = 0; i < ranges.length; i++) {
+-                if (i > 0) out.append(',');
+-                String range = ranges[i];
+-                int dash = range.indexOf('-');
+-                if (dash <= 0 || dash == range.length() - 1) return null;
+-                int first = Integer.parseInt(range.substring(0, dash));
+-                int last = Integer.parseInt(range.substring(dash + 1));
+-                if (first < 0 || last < first || last > 1_000_000) return null;
+-                out.append(first + amount).append('-').append(last + amount);
+-            }
+-        }
+-        return out.toString();
+-    }
+-
+     private static String tag(String tags, String name) {
+         String key = name + "=";
+         int p = tags.startsWith(key) ? 0 : tags.indexOf(";" + key);
+diff --git a/mod/app/src/main/java/bttv/rn/RNFeatureHooks318.java b/mod/app/src/main/java/bttv/rn/RNFeatureHooks318.java
+index cd465b9..286e849 100644
+--- a/mod/app/src/main/java/bttv/rn/RNFeatureHooks318.java
++++ b/mod/app/src/main/java/bttv/rn/RNFeatureHooks318.java
+@@ -156,6 +156,7 @@ public final class RNFeatureHooks318 {
+             if (!id.startsWith(PREFIX)) return uri;
+             Emote e = Emotes.getEmoteById(id.substring(PREFIX.length()));
+             String target = e == null ? null : e.url;
++            if (e != null) RNAnimatedInput318.register(e);
+             if (target == null || (!target.startsWith("https://") && !target.startsWith("http://"))) {
+                 // Do not guess a BTTV URL for an FFZ/7TV ID.
+                 return uri;
+@@ -212,8 +213,11 @@ public final class RNFeatureHooks318 {
+         if (BYPASSED.remove(id)) return false;
+         try {
+             String body = requestBody(data);
+-            if (body == null || !body.contains("ChatEmoteSets")) return false;
+-            if (!hasOperation(body, "ChatEmoteSets")) return false;
++            if (body == null) return false;
++            // Synthetic BTTV IDs cannot be resolved by Twitch's EmoteCard endpoint.
++            // Handle only recognized one-operation requests. All others go untouched.
++            if (body.contains("EmoteCard") && interceptEmoteCard(module, url, id, body)) return true;
++            if (!body.contains("ChatEmoteSets") || !hasOperation(body, "ChatEmoteSets")) return false;
+             final String request = body;
+             final List<String[]> requestHeaders = requestHeaders(headers);
+             IO.execute(new Runnable() {
+@@ -243,6 +247,51 @@ public final class RNFeatureHooks318 {
+             return false;
+         }
+     }
++    /** PR #740: EmoteCard for BTTV/FFZ/7TV must not be sent to Twitch's API. */
++    private static boolean interceptEmoteCard(final Object module, final String url, final int id, String request) throws Exception {
++        boolean batch = request.trim().startsWith("[");
++        JSONArray operations = batch ? new JSONArray(request) : new JSONArray().put(new JSONObject(request));
++        // Never synthesize part of a GraphQL batch and drop the remaining operations.
++        if (operations.length() != 1) return false;
++        JSONObject operation = operations.getJSONObject(0);
++        if (!"EmoteCard".equals(operation.optString("operationName"))) return false;
++        JSONObject variables = operation.optJSONObject("variables");
++        String requested = variables == null ? null : variables.optString("emoteID", null);
++        if (requested == null) return false;
++        String realId = requested.startsWith("BTTV-wide-") ? requested.substring("BTTV-wide-".length())
++                : requested.startsWith(PREFIX) ? requested.substring(PREFIX.length()) : null;
++        if (realId == null || realId.isEmpty()) return false;
++        Emote emote = Emotes.getEmoteById(realId);
++        if (emote == null) return false; // Unknown ID; preserve Twitch's normal fallback.
++        JSONObject item = new JSONObject();
++        item.put("id", requested);
++        item.put("token", emote.code);
++        item.put("type", "GLOBALS");
++        item.put("subscriptionTier", JSONObject.NULL);
++        item.put("setID", "0");
++        item.put("owner", JSONObject.NULL);
++        item.put("subscriptionSummaries", new JSONArray());
++        item.put("bitsBadgeTierSummary", JSONObject.NULL);
++        item.put("__typename", "Emote");
++        JSONObject result = new JSONObject();
++        result.put("data", new JSONObject().put("emote", item));
++        result.put("extensions", new JSONObject().put("operationName", "EmoteCard")
++                .put("durationMilliseconds", 1).put("requestID", "bttv-android"));
++        final String answer = batch ? new JSONArray().put(result).toString() : result.toString();
++        // RN expects the events after sendRequest has returned to JS.
++        android.os.Handler main = new android.os.Handler(android.os.Looper.getMainLooper());
++        main.post(new Runnable() {
++            @Override public void run() {
++                try {
++                    Map<String, String> h = Collections.singletonMap("content-type", "application/json");
++                    emitResponse(module, id, 200, h, url, answer);
++                } catch (Throwable failure) { Log.e(TAG, "External EmoteCard response failed", failure); }
++            }
++        });
++        Log.i(TAG, "External emote metadata card answered (provider=" + emote.source.name() + ")");
++        return true;
++    }
++
+     private static String requestBody(Object map) throws Exception {
+         if (map == null) return null;
+         Class<?> rm = Class.forName("com.facebook.react.bridge.ReadableMap");
+@@ -272,7 +321,8 @@ public final class RNFeatureHooks318 {
+         return result;
+     }
+     private static void proxyPicker(Object module, int id, String url, List<String[]> headers, String body) throws Exception {
+-        int channel = Data.currentBroadcasterId;
++        int channel = channelForPickerRequest(body, Data.currentBroadcasterId);
++        if (channel > 0 && channel != Data.currentBroadcasterId) Data.setCurrentBroadcasterId(channel);
+         if (channel > 0) Emotes.ensureChannelEmotes(Data.ctx, channel);
+         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+         int status;
+@@ -308,13 +358,45 @@ public final class RNFeatureHooks318 {
+                 responseText = output.toString("UTF-8");
+             }
+         } finally { connection.disconnect(); }
+-        long until = System.currentTimeMillis() + 2500;
+-        while (System.currentTimeMillis() < until && Emotes.globalEmotesBTTV.isEmpty()) Thread.sleep(75);
++        waitForPickerCatalogs(channel);
+         String response = responseText;
+         try { response = injectEmoteSets(body, responseText, channel); }
+         catch (Throwable t) { Log.e(TAG, "Picker payload conversion failed; returning stock response", t); }
+         emitResponse(module, id, status, responseHeaders, url, response);
+     }
++    /** The picker request carries the channel before the first IRC ROOMSTATE frame on some streams. */
++    private static int channelForPickerRequest(String request, int fallback) {
++        try {
++            JSONArray operations = request.trim().startsWith("[") ? new JSONArray(request)
++                    : new JSONArray().put(new JSONObject(request));
++            for (int i = 0; i < operations.length(); i++) {
++                JSONObject op = operations.getJSONObject(i);
++                if (!"ChatChannelLockedEmotes".equals(op.optString("operationName"))) continue;
++                JSONObject vars = op.optJSONObject("variables");
++                String id = vars == null ? "" : vars.optString("channelOwnerID", "");
++                if (id.isEmpty()) continue;
++                int parsed = Integer.parseInt(id);
++                if (parsed > 0) return parsed;
++            }
++        } catch (Throwable error) {
++            Log.w(TAG, "Picker channel ID not available; retaining current channel", error);
++        }
++        return fallback;
++    }
++
++    /** Give asynchronous provider responses time to populate all three channel catalogs. */
++    private static void waitForPickerCatalogs(int channel) throws InterruptedException {
++        long until = System.currentTimeMillis() + 4000;
++        while (System.currentTimeMillis() < until) {
++            boolean globals = !Emotes.globalEmotesBTTV.isEmpty();
++            boolean channels = channel <= 0 || (Emotes.channelEmotesBTTV.containsKey(channel)
++                    && Emotes.channelEmotesFFZ.containsKey(channel)
++                    && Emotes.channelEmotes7TV.containsKey(channel));
++            if (globals && channels) break;
++            Thread.sleep(60);
++        }
++    }
++
+     private static String injectEmoteSets(String request, String response, int channel) throws Exception {
+         boolean batch = request.trim().startsWith("[");
+         JSONArray req = batch ? new JSONArray(request) : new JSONArray().put(new JSONObject(request));
+@@ -328,21 +410,34 @@ public final class RNFeatureHooks318 {
+         for (int i = 0; i < sets.length(); i++) {
+             JSONObject set = sets.getJSONObject(i);
+             if (setTemplate == null) setTemplate = set;
+-            if (ownerTemplate == null) ownerTemplate = set.optJSONObject("owner");
++            if (ownerTemplate == null && set.optJSONObject("owner") != null) {
++                ownerTemplate = set.getJSONObject("owner");
++                setTemplate = set;
++            }
+             JSONArray es = set.optJSONArray("emotes");
+             if (es != null && es.length() > 0 && emoteTemplate == null) emoteTemplate = es.getJSONObject(0);
+         }
+         if (setTemplate == null || emoteTemplate == null) return response;
++        if (ownerTemplate == null) {
++            // Without an owner, React Native categorizes synthetic sets as Twitch Global.
++            ownerTemplate = new JSONObject().put("id", "").put("login", "")
++                    .put("displayName", "").put("profileImageURL", "")
++                    .put("__typename", "User");
++        }
+         JSONArray custom = new JSONArray();
+         int added = 0;
++        int channels = 0;
++        if (channel > 0) {
++            channels += addSet(custom, setTemplate, emoteTemplate, ownerTemplate, "BetterTTV Channel", "bttv-channel-" + channel, channelSet(Emotes.channelEmotesBTTV.get(channel), channel, Emotes.Source.BTTV));
++            channels += addSet(custom, setTemplate, emoteTemplate, ownerTemplate, "FrankerFaceZ Channel", "ffz-channel-" + channel, channelSet(Emotes.channelEmotesFFZ.get(channel), channel, Emotes.Source.FFZ));
++            channels += addSet(custom, setTemplate, emoteTemplate, ownerTemplate, "7TV Channel", "7tv-channel-" + channel, channelSet(Emotes.channelEmotes7TV.get(channel), channel, Emotes.Source.STV));
++        }
++        added += channels;
+         added += addSet(custom, setTemplate, emoteTemplate, ownerTemplate, "BetterTTV Global", "bttv-global", Emotes.globalEmotesBTTV.values());
+         added += addSet(custom, setTemplate, emoteTemplate, ownerTemplate, "FrankerFaceZ Global", "ffz-global", Emotes.globalEmotesFFZ.values());
+         added += addSet(custom, setTemplate, emoteTemplate, ownerTemplate, "7TV Global", "7tv-global", Emotes.globalEmotes7TV.values());
+-        if (channel > 0) {
+-            added += addSet(custom, setTemplate, emoteTemplate, ownerTemplate, "BetterTTV Channel", "bttv-channel-" + channel, channelSet(Emotes.channelEmotesBTTV.get(channel), channel, Emotes.Source.BTTV));
+-            added += addSet(custom, setTemplate, emoteTemplate, ownerTemplate, "FrankerFaceZ Channel", "ffz-channel-" + channel, channelSet(Emotes.channelEmotesFFZ.get(channel), channel, Emotes.Source.FFZ));
+-            added += addSet(custom, setTemplate, emoteTemplate, ownerTemplate, "7TV Channel", "7tv-channel-" + channel, channelSet(Emotes.channelEmotes7TV.get(channel), channel, Emotes.Source.STV));
+-        }
++        Log.i(TAG, "Picker channel catalogs: channel-known=" + (channel > 0)
++                + ", channel-emotes=" + channels + ", total-external=" + added);
+         for (int i = 0; i < sets.length(); i++) custom.put(sets.get(i));
+         if (added > 0) data.getJSONObject("currentUser").put("emoteSets", custom);
+         Log.i(TAG, "RN picker external emotes added=" + added);

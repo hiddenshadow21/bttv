@@ -1,14 +1,14 @@
 # Build validation and release preparation
 
 This document describes maintainer gates, not permission to publish a release.
-The application remains `tv.twitch.bttvandroid.app`, version `0.43.2-beta`,
+The application remains `tv.twitch.bttvandroid.app`, version `0.44.0-beta`,
 versionCode `1208000338`, minSdk 29 and targetSdk 36. No version bump is implied.
 
 ## Reproducible inputs and isolated builds
 
 Follow the [Docker or manual instructions](README.md#build-it-yourself).
 `tools/prepare_twitch_input.py` checks the five root-level APK payloads against
-the pinned hashes in `tools/twitch-31.2.0-inputs.json`. It does not download them
+the pinned hashes in `tools/twitch-31.8.0-inputs.json`. It does not download them
 or accept arbitrary APKMirror variants just because their versionName matches.
 Its optional `--armv7-bundle` selects only the pinned ARMv7 APK from a second
 bundle while preserving all four pinned primary APKs. It never substitutes the

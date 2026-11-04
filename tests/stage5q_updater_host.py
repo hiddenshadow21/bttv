@@ -8,7 +8,7 @@ public class UpdaterHostTest {
  static final String CERT="1E08A903AEF9C3A721510B64EC764D01D3D094EB954161B62544EA8F187B5953";
  static final String OFFICIAL="314F3A00877C7A5880A9E1BFD3E98B7E3D43C1340EF0FAC35B7B3956B75BACD3";
  static final List<String> ABIS=Arrays.asList("arm64-v8a","armeabi-v7a");
- static UpdateRelease.Installed installed(){return new UpdateRelease.Installed("0.43.2-beta",1208000338L,CERT,30,ABIS);}
+ static UpdateRelease.Installed installed(){return new UpdateRelease.Installed("0.44.0-beta",1208000338L,CERT,30,ABIS);}
  static JSONObject compatibility(byte[] bytes)throws Exception {
   return new JSONObject().put("schemaVersion",1).put("standalone",true).put("packageName",UpdateRelease.PACKAGE)
    .put("releaseTag","v0.44.0-beta").put("versionName","0.44.0-beta").put("versionCode",1208000339L)
@@ -30,7 +30,7 @@ public class UpdaterHostTest {
   for(long code:new long[]{1208000338L,1208000337L}) {
    JSONObject c=compatibility(b).put("versionCode",code);assertNull(UpdateRelease.inspect(release(c,b).toString(),installed()).candidate);
   }
-  JSONObject same=compatibility(b).put("releaseTag","v0.43.2-beta").put("versionName","0.43.2-beta");
+  JSONObject same=compatibility(b).put("releaseTag","v0.44.0-beta").put("versionName","0.44.0-beta");
   assertNotNull(UpdateRelease.inspect(release(same,b).toString(),installed()).candidate);
   for(String name:new String[]{"0.44.0","0.45.0-beta"}) {
    JSONObject c=compatibility(b).put("versionName",name).put("releaseTag","v"+name);
@@ -153,18 +153,18 @@ public class UpdaterAndroidTest {
   com.android.apksig.ApkVerifier.Result verified=new com.android.apksig.ApkVerifier.Builder(original).setMinCheckedPlatformVersion(29).build().verify();
   assertTrue("actual accepted APK signature",verified.isVerified());
   Signature signer=new Signature(verified.getSignerCertificates().get(0).getEncoded());
-  PackageInfo installed=new PackageInfo();installed.packageName=UpdateRelease.PACKAGE;installed.versionName="0.43.2-beta";installed.setLongVersionCode(1208000337L);
+  PackageInfo installed=new PackageInfo();installed.packageName=UpdateRelease.PACKAGE;installed.versionName="0.44.0-beta";installed.setLongVersionCode(1208000337L);
   installed.applicationInfo=context.getApplicationInfo();installed.applicationInfo.sourceDir=original.getAbsolutePath();
   installed.signingInfo=new SigningInfo();((ShadowSigningInfo)Shadow.extract(installed.signingInfo)).setSignatures(new Signature[]{signer});
   ((ShadowPackageManager)Shadow.extract(context.getPackageManager())).installPackage(installed);
-  PackageInfo archive=new PackageInfo();archive.packageName=UpdateRelease.PACKAGE;archive.versionName="0.43.2-beta";archive.setLongVersionCode(1208000338L);
+  PackageInfo archive=new PackageInfo();archive.packageName=UpdateRelease.PACKAGE;archive.versionName="0.44.0-beta";archive.setLongVersionCode(1208000338L);
   archive.applicationInfo=new ApplicationInfo();archive.applicationInfo.minSdkVersion=29;
   ((ShadowPackageManager)Shadow.extract(context.getPackageManager())).setPackageArchiveInfo(original.getAbsolutePath(),archive);
   context.getApplicationInfo().sourceDir=original.getAbsolutePath();
  }
  UpdateRelease actual()throws Exception {
   // Simulate lower installed code through PM fixtures, not a shipped bypass or a rewritten APK.
-  JSONObject c=UpdaterHostTest.compatibility(new byte[]{1}).put("releaseTag","v0.43.2-beta").put("versionName","0.43.2-beta")
+  JSONObject c=UpdaterHostTest.compatibility(new byte[]{1}).put("releaseTag","v0.44.0-beta").put("versionName","0.44.0-beta")
    .put("versionCode",1208000338L).put("sizeBytes",original.length()).put("sha256",UpdateTransfer.digest(original,new UpdateTransfer.Cancel()));
   JSONObject r=UpdaterHostTest.release(c,new byte[]{1});r.getJSONArray("assets").getJSONObject(0).put("size",original.length());
   UpdateRelease.Installed installed=UpdateVerifier.installed(context);
