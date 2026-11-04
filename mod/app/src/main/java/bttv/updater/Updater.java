@@ -19,10 +19,6 @@ import bttv.Network;
 import bttv.Res;
 import bttv.ResUtil;
 import bttv.settings.Settings;
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.Response;
-import okhttp3.ResponseBody;
 import tv.twitch.android.feature.viewer.main.navigation.PersistentBannerPresenter;
 import tv.twitch.android.feature.viewer.main.navigation.PersistentBannerPresenter.PersistentBannerPresenterListener;
 
@@ -45,21 +41,16 @@ public class Updater {
             return;
         }
         Log.d("LBTTVUpdated", "Checking for updates...");
-        Network.get(GH_API_HOST + "/repos/bttv-android/bttv/releases/latest", new Callback() {
+        Network.get(GH_API_HOST + "/repos/bttv-android/bttv/releases/latest", new Network.TextCallback() {
             @Override
-            public void onFailure(@NonNull Call call, @NonNull IOException e) {
+            public void onFailure(IOException e) {
                 Log.e("LBTTVNetworkFail", "Update Call failed", e);
-                Log.e("LBTTVNetworkFail", call.toString());
-                listener.onError(e);
+                                listener.onError(e);
             }
 
             @Override
-            public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
-                try (ResponseBody responseBody = response.body()) {
-                    if (!response.isSuccessful())
-                        throw new IOException("Unexpected code " + response);
-
-                    String str = responseBody.string();
+            public void onSuccess(String str) throws IOException {
+                try {
                     JSONObject json = new JSONObject(str);
                     String tagName = json.getString("tag_name");
                     if (tagName.equals(Data.getBttvVersion(context))) {

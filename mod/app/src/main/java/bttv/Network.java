@@ -9,150 +9,199 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.Collections;
-import java.util.HashSet;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import bttv.emote.ChannelEmoteData;
 import bttv.emote.Emote;
 import bttv.emote.Emotes;
-import okhttp3.Callback;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
 
-public class Network {
-
+/**
+ * Twitch 31.8.0 catalog loader. Does not depend on unshaded okhttp3.* classes:
+ * those types are absent in Twitch's current runtime DEX files.
+ *
+ * The public get*Emotes() methods retain the original bttv.Network API.
+ */
+public final class Network {
+    private static final String TAG = "BTTV318Net";
     private static final int GLOBAL_CHANNEL_ID = -2;
-    private static final ExecutorService EXECUTOR = Executors.newFixedThreadPool(3);
-    private static final Set<String> finishedRequests = Collections.synchronizedSet(new HashSet<String>());
+    private static final int MAX_BODY_BYTES = 3_000_000;
     public static final String BTTV_API_HOST = "https://api.betterttv.net";
-    public static final String FFZ_API_HOST = "https://api.frankerfacez.com/v1";
     public static final String STV_API_HOST = "https://7tv.io/v3";
+    public static final String FFZ_API_HOST = "https://api.frankerfacez.com/v1";
     public static final String CHATTERINO_API_HOST = "https://api.chatterino.com";
+    private static final Set<String> IN_FLIGHT = ConcurrentHashMap.newKeySet();
+    // Preserve PR #740's picker fallback: no-emote channels must finish loading.
+    private static final Set<String> FINISHED_REQUESTS = ConcurrentHashMap.newKeySet();
 
-    public static void get(String url, Callback cb) {
-        OkHttpClient client = new OkHttpClient();
-        Request request = new Request.Builder()
-                .url(url)
-                .addHeader("User-Agent", "bttv-android")
-                .build();
-        client.newCall(request).enqueue(cb);
-    }
-
-    // does not depend on okhttp, as it is not available in obfuscated Twitch builds
-    private static void getEmotes(String url, Emotes.Source source, int channelId) {
-        finishedRequests.remove(requestKey(source, channelId));
-        EXECUTOR.execute(new EmoteRequest(url, source, channelId));
-    }
-
-    private static String requestKey(Emotes.Source source, int channelId) {
-        return source + ":" + channelId;
-    }
-
-    /** @return true if the last request for the emotes of this channel is done, no matter if it failed */
     public static boolean isChannelRequestFinished(Emotes.Source source, int channelId) {
-        return finishedRequests.contains(requestKey(source, channelId));
+        return FINISHED_REQUESTS.contains(source.name() + ":" + channelId);
+    }
+    private static final ExecutorService IO = new ThreadPoolExecutor(
+            2, 3, 30L, TimeUnit.SECONDS, new ArrayBlockingQueue<Runnable>(32),
+            new ThreadFactory() {
+                private int serial;
+                @Override public synchronized Thread newThread(Runnable work) {
+                    Thread thread = new Thread(work, "bttv-catalog-" + (++serial));
+                    thread.setDaemon(true);
+                    return thread;
+                }
+            }, new ThreadPoolExecutor.AbortPolicy());
+
+    public Network() {}
+
+    /** Lightweight asynchronous response contract for badge and other JSON callers. */
+    public interface TextCallback {
+        void onSuccess(String json) throws IOException;
+        void onFailure(IOException error);
     }
 
-    private static class EmoteRequest implements Runnable {
-        private final String url;
-        private final Emotes.Source source;
-        private final int channelId;
-
-        public EmoteRequest(String url, Emotes.Source source, int channelId) {
-            Log.d("LBTTV", "EmoteRequest: "  + source.toString() + " ch: " + channelId);
-            this.url = url;
-            this.source = source;
-            this.channelId = channelId;
-        }
-
-        @Override
-        public final void run() {
-            HttpURLConnection connection = null;
-            try {
-                connection = (HttpURLConnection) new URL(url).openConnection();
-                connection.setRequestProperty("User-Agent", "bttv-android");
-                connection.setConnectTimeout(10000);
-                connection.setReadTimeout(10000);
-
-                int code = connection.getResponseCode();
-                if (code < 200 || code >= 300)
-                    throw new IOException("Unexpected code " + code + " for " + url);
-
-                String json = readAll(connection.getInputStream());
-
-                if (channelId == GLOBAL_CHANNEL_ID) {
-                    // Global
-                    Emotes.setGlobal(Emote.fromJSONArray(json, source), source);
-                } else {
-                    // Channel
-                    switch (source) {
-                        case BTTV:
-                            ChannelEmoteData chEmData = ChannelEmoteData.fromJson(json);
-                            Emotes.addChannelBTTV(channelId, chEmData);
-                            break;
-                        case FFZ:
-                            List<Emote> emotes = Emote.fromJSONArray(json, source);
-                            Emotes.addChannelFFZ(channelId, emotes);
-                            break;
-                        case STV:
-                            emotes = Emote.fromJSONArray(json, source);
-                            Emotes.addChannel7TV(channelId, emotes);
-                            break;
-                        default:
-                            Log.e("LBTTVNetwork", "Source unknown!", new Exception());
+    /** Kept for Badges.getBadges() and any other generic provider calls. */
+    public static void get(final String url, final TextCallback callback) {
+        if (callback == null) throw new IllegalArgumentException("callback must not be null");
+        try {
+            IO.execute(new Runnable() {
+                @Override public void run() {
+                    try {
+                        callback.onSuccess(download(url));
+                    } catch (Exception failure) {
+                        IOException error = failure instanceof IOException
+                                ? (IOException) failure : new IOException("Provider callback failed", failure);
+                        try {
+                            callback.onFailure(error);
+                        } catch (Throwable callbackFailure) {
+                            Log.e(TAG, "Provider failure callback crashed", callbackFailure);
+                        }
                     }
                 }
-            } catch (JSONException e) {
-                Log.e("LBTTVNetwork", e.getMessage(), e);
-            } catch (Throwable e) {
-                Log.e("LBTTVNetworkFail", "Call failed: " + url, e);
-            } finally {
-                if (connection != null) {
-                    connection.disconnect();
-                }
-                finishedRequests.add(requestKey(source, channelId));
-            }
+            });
+        } catch (RuntimeException rejected) {
+            Log.e(TAG, "Provider request could not be scheduled", rejected);
+            callback.onFailure(new IOException("Provider request could not be scheduled", rejected));
         }
+    }
 
-        private static String readAll(InputStream in) throws IOException {
-            try (InputStream stream = in) {
-                ByteArrayOutputStream out = new ByteArrayOutputStream();
-                byte[] buffer = new byte[8192];
-                int read;
-                while ((read = stream.read(buffer)) != -1) {
-                    out.write(buffer, 0, read);
+    private static void schedule(final String url, final Emotes.Source source, final int channel) {
+        final String key = source.name() + ":" + channel;
+        if (!IN_FLIGHT.add(key)) return;
+        FINISHED_REQUESTS.remove(key);
+        Log.i(TAG, "Catalog request scheduled: provider=" + source.name()
+                + ", scope=" + (channel == GLOBAL_CHANNEL_ID ? "global" : "channel"));
+        try {
+            IO.execute(new Runnable() {
+                @Override public void run() {
+                    try {
+                        String json = download(url);
+                        if (channel == GLOBAL_CHANNEL_ID) {
+                            List<Emote> emotes = Emote.fromJSONArray(json, source);
+                            Emotes.setGlobal(emotes, source);
+                            Log.i(TAG, "Catalog loaded: provider=" + source.name()
+                                    + ", scope=global, count=" + emotes.size());
+                        } else {
+                            int count;
+                            switch (source) {
+                                case BTTV: {
+                                    ChannelEmoteData data = ChannelEmoteData.fromJson(json);
+                                    Emotes.addChannelBTTV(channel, data);
+                                    count = data.channelEmotes.size() + data.sharedEmotes.size();
+                                    break;
+                                }
+                                case FFZ: {
+                                    List<Emote> emotes = Emote.fromJSONArray(json, source);
+                                    Emotes.addChannelFFZ(channel, emotes);
+                                    count = emotes.size();
+                                    break;
+                                }
+                                case STV: {
+                                    List<Emote> emotes = Emote.fromJSONArray(json, source);
+                                    Emotes.addChannel7TV(channel, emotes);
+                                    count = emotes.size();
+                                    break;
+                                }
+                                default: throw new IllegalArgumentException("Unknown catalog source");
+                            }
+                            Log.i(TAG, "Catalog loaded: provider=" + source.name()
+                                    + ", scope=channel, count=" + count);
+                        }
+                    } catch (Throwable e) {
+                        // Network and provider schema changes are visible, not silently ignored.
+                        Log.e(TAG, "Catalog fetch failed: provider=" + source.name()
+                                + ", scope=" + (channel == GLOBAL_CHANNEL_ID ? "global" : "channel"), e);
+                    } finally {
+                        FINISHED_REQUESTS.add(key);
+                        IN_FLIGHT.remove(key);
+                    }
                 }
-                return out.toString("UTF-8");
+            });
+        } catch (RuntimeException e) {
+            FINISHED_REQUESTS.add(key);
+            IN_FLIGHT.remove(key);
+            Log.e(TAG, "Catalog task scheduling rejected", e);
+        }
+    }
+
+    private static String download(String url) throws IOException {
+        URL request = new URL(url);
+        String host = request.getHost();
+        if (!"https".equalsIgnoreCase(request.getProtocol()) ||
+                !("api.betterttv.net".equals(host) || "7tv.io".equals(host)
+                        || "api.frankerfacez.com".equals(host)
+                        || "api.chatterino.com".equals(host)
+                        // Update-check JSON only. Binary downloads are handled separately.
+                        || ("api.github.com".equals(host) &&
+                            "/repos/bttv-android/bttv/releases/latest".equals(request.getPath())))) {
+            throw new IOException("Unexpected emote API host");
+        }
+        HttpURLConnection connection = (HttpURLConnection) request.openConnection();
+        connection.setConnectTimeout(10000);
+        connection.setReadTimeout(15000);
+        connection.setRequestMethod("GET");
+        connection.setRequestProperty("User-Agent", "bttv-android/0.44.0-beta");
+        connection.setRequestProperty("Accept", "application/json");
+        connection.setInstanceFollowRedirects(false);
+        try {
+            int status = connection.getResponseCode();
+            if (status != 200) throw new IOException("Catalog HTTP " + status);
+            try (InputStream stream = connection.getInputStream();
+                 ByteArrayOutputStream bytes = new ByteArrayOutputStream()) {
+                byte[] buf = new byte[8192];
+                int length;
+                while ((length = stream.read(buf)) != -1) {
+                    if (bytes.size() + length > MAX_BODY_BYTES) {
+                        throw new IOException("Catalog response exceeds size limit");
+                    }
+                    bytes.write(buf, 0, length);
+                }
+                return new String(bytes.toByteArray(), StandardCharsets.UTF_8);
             }
+        } finally {
+            connection.disconnect();
         }
     }
 
     public static void getBTTVGlobalEmotes() {
-        getEmotes(BTTV_API_HOST + "/3/cached/emotes/global", Emotes.Source.BTTV, GLOBAL_CHANNEL_ID);
+        schedule(BTTV_API_HOST + "/3/cached/emotes/global", Emotes.Source.BTTV, GLOBAL_CHANNEL_ID);
     }
-
     public static void getFFZGlobalEmotes() {
-        getEmotes(BTTV_API_HOST + "/3/cached/frankerfacez/emotes/global", Emotes.Source.FFZ, GLOBAL_CHANNEL_ID);
+        schedule(BTTV_API_HOST + "/3/cached/frankerfacez/emotes/global", Emotes.Source.FFZ, GLOBAL_CHANNEL_ID);
     }
-
     public static void get7TVGlobalEmotes() {
-        getEmotes(STV_API_HOST + "/emote-sets/global", Emotes.Source.STV, GLOBAL_CHANNEL_ID);
+        schedule(STV_API_HOST + "/emote-sets/global", Emotes.Source.STV, GLOBAL_CHANNEL_ID);
     }
-
     public static void getBTTVChannelEmotes(int channelId) {
-        getEmotes(BTTV_API_HOST + "/3/cached/users/twitch/" + channelId, Emotes.Source.BTTV, channelId);
+        schedule(BTTV_API_HOST + "/3/cached/users/twitch/" + channelId, Emotes.Source.BTTV, channelId);
     }
-
     public static void getFFZChannelEmotes(int channelId) {
-        getEmotes(BTTV_API_HOST + "/3/cached/frankerfacez/users/twitch/" + channelId, Emotes.Source.FFZ, channelId);
+        schedule(BTTV_API_HOST + "/3/cached/frankerfacez/users/twitch/" + channelId, Emotes.Source.FFZ, channelId);
     }
-
     public static void get7TVChannelEmotes(int channelId) {
-        getEmotes(STV_API_HOST + "/users/twitch/" + channelId, Emotes.Source.STV, channelId);
+        schedule(STV_API_HOST + "/users/twitch/" + channelId, Emotes.Source.STV, channelId);
     }
-
 }

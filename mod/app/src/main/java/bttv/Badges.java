@@ -14,10 +14,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.Response;
-import okhttp3.ResponseBody;
 import tv.twitch.android.models.chat.MessageBadge;
 import tv.twitch.chat.library.model.ChatMessageInfo;
 
@@ -103,24 +99,21 @@ public class Badges {
         Network.get(Network.CHATTERINO_API_HOST + "/badges", new ResponseHandler(BTTVBadgeKind.Chatterino));
     }
 
-    private static class ResponseHandler implements Callback {
+    private static class ResponseHandler implements Network.TextCallback {
         final BTTVBadgeKind kind;
         ResponseHandler(BTTVBadgeKind kind) {
             this.kind = kind;
         }
 
         @Override
-        public void onFailure(@NonNull Call call, @NonNull IOException e) {
+        public void onFailure(IOException e) {
             Log.e(TAG, "onFailure: ", e);
         }
 
         @Override
-        public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
-            try (ResponseBody responseBody = response.body()) {
-                if (!response.isSuccessful())
-                    throw new IOException("Unexpected code " + response);
+        public void onSuccess(String json) throws IOException {
+            try {
 
-                String json = responseBody.string();
                 if (kind == BTTVBadgeKind.BTTV) {
                     JSONArray array = new JSONArray(json);
                     for (int i = 0; i < array.length(); i++) {
@@ -209,10 +202,6 @@ public class Badges {
                         }
                     }
                 }
-            } catch (IOException e) {
-                e.printStackTrace();
-                Log.e(TAG, "onResponse: " + e.getMessage(), e);
-                throw e;
             } catch (Exception e) {
                 e.printStackTrace();
                 Log.e(TAG, e.getMessage(), e);

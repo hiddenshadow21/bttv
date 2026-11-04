@@ -7,6 +7,9 @@ import android.graphics.Paint;
 import android.graphics.RectF;
 import android.util.Log;
 
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -83,6 +86,56 @@ public class Hooks {
         } catch (Throwable t) {
             Log.e(TAG, "imageUri: ", t);
             return uri;
+        }
+    }
+
+    /**
+     * 31.8.0 ReactImageManager's prop setter receives an array of React Native
+     * image source maps. Avoid obsolete obfuscated ImageSource constructor hooks.
+     * Copy only if at least one BTTV emote URI needs rewriting.
+     *
+     * The copy-on-write adaptation comes from the supplied 31.8.0 port, but
+     * it calls PR #740's imageUri() and keeps PR #740's provider model.
+     */
+    @SuppressWarnings("unused")
+    public static Object rewriteReactSources(Object sources) {
+        if (sources == null) return null;
+        try {
+            Class<?> readableArray = Class.forName("com.facebook.react.bridge.ReadableArray");
+            Class<?> readableMap = Class.forName("com.facebook.react.bridge.ReadableMap");
+            Class<?> writableMap = Class.forName("com.facebook.react.bridge.WritableMap");
+            Class<?> arguments = Class.forName("com.facebook.react.bridge.Arguments");
+            Method sizeMethod = readableArray.getMethod("size");
+            Method getMapMethod = readableArray.getMethod("getMap", int.class);
+            Method getStringMethod = readableMap.getMethod("getString", String.class);
+            int size = (Integer) sizeMethod.invoke(sources);
+            List<Object> original = new ArrayList<>(size);
+            List<String> rewrites = new ArrayList<>(size);
+            boolean changed = false;
+            for (int i = 0; i < size; ++i) {
+                Object item = getMapMethod.invoke(sources, i);
+                original.add(item);
+                String uri = item == null ? null : (String) getStringMethod.invoke(item, "uri");
+                String rewritten = imageUri(uri);
+                rewrites.add(rewritten);
+                if (rewritten != null && !rewritten.equals(uri)) changed = true;
+            }
+            if (!changed) return sources;
+            Object result = arguments.getMethod("createArray").invoke(null);
+            Method createMap = arguments.getMethod("createMap");
+            Method merge = writableMap.getMethod("merge", readableMap);
+            Method putString = writableMap.getMethod("putString", String.class, String.class);
+            Method pushMap = result.getClass().getMethod("pushMap", readableMap);
+            for (int i = 0; i < size; ++i) {
+                Object map = createMap.invoke(null);
+                merge.invoke(map, original.get(i));
+                putString.invoke(map, "uri", rewrites.get(i));
+                pushMap.invoke(result, map);
+            }
+            return result;
+        } catch (Throwable error) {
+            Log.e(TAG, "rewriteReactSources: leaving original sources untouched", error);
+            return sources;
         }
     }
 

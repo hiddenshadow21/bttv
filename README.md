@@ -1,3 +1,5 @@
+> **Twitch 31.8.0 clean rebase candidate (based on PR #740):** See [v31/README.md](v31/README.md) for the 31.8.0-specific build, scope, and validation limits. This branch intentionally does not include PR #741.
+
 [![license: MIT][license-badge]][license-file]
 [![bttv version][bttv-version]][latest-release]
 ![build on][base-version]

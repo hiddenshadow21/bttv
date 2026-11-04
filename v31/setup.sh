@@ -1,5 +1,5 @@
 #!/bin/bash
-# Prepares the workspace for Twitch 31.5.2 (run inside the builder container, once per Twitch bundle).
+# Prepares the workspace for Twitch 31.8.0 (run inside the builder container, once per Twitch bundle).
 # Expects the repo at /repo with the bundle of split apks as /repo/twitch.zip.
 set -e
 cd /usr/build
@@ -20,7 +20,7 @@ java -jar $APKTOOL_PATH d -r -f split/base.apk -o work
 
 # reference for apply_hooks.sh
 cd work
-printf "build\ndist\nsmali_classes7\n" > .gitignore
+printf "build\ndist\n.bttv-generated-dex-dir\n" > .gitignore
 git init -q
 git add -A
 git commit -q -m "base"

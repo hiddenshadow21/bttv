@@ -1,0 +1,57 @@
+# BTTV 31.8.0 build environment: current Ubuntu base, Java 11 for Gradle 7.2.
+# Use: docker build -f Dockerfile.modern -t bttv-builder-local .
+FROM eclipse-temurin:11-jdk-jammy
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl git unzip zip rsync jq python3 perl \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV ANDROID_SDK_HOME=/opt/android-sdk-linux \
+    ANDROID_SDK_ROOT=/opt/android-sdk-linux \
+    ANDROID_HOME=/opt/android-sdk-linux \
+    ANDROID_SDK=/opt/android-sdk-linux \
+    APKTOOL_PATH=/opt/apktool_2.9.3.jar \
+    UBER_APK_SIGNER_PATH=/opt/uber-apk-signer-1.2.1.jar \
+    BAKSMALI_PATH=/opt/baksmali-2.4.0.jar \
+    BUILD_COMPANION=/opt/build-companion \
+    DOCKER=true
+
+# Match the repository's Java 11-compatible Android CLI tools, but install
+# Android Build Tools 30.0.3 as requested by mod/*/build.gradle.
+WORKDIR /opt
+RUN curl -fL --retry 3 \
+      https://dl.google.com/android/repository/commandlinetools-linux-6858069_latest.zip \
+      -o /tmp/android-cli.zip \
+    && unzip -q /tmp/android-cli.zip -d /opt \
+    && rm /tmp/android-cli.zip \
+    && mkdir -p "$ANDROID_SDK_ROOT" \
+    && yes | /opt/cmdline-tools/bin/sdkmanager \
+         --sdk_root="$ANDROID_SDK_ROOT" --licenses > /dev/null
+RUN yes | /opt/cmdline-tools/bin/sdkmanager \
+      --sdk_root="$ANDROID_SDK_ROOT" \
+      'platforms;android-30' 'build-tools;30.0.3'
+
+RUN curl -fL --retry 3 \
+      https://github.com/iBotPeaches/Apktool/releases/download/v2.9.3/apktool_2.9.3.jar \
+      -o "$APKTOOL_PATH" \
+    && curl -fL --retry 3 \
+      https://github.com/patrickfav/uber-apk-signer/releases/download/v1.2.1/uber-apk-signer-1.2.1.jar \
+      -o "$UBER_APK_SIGNER_PATH" \
+    && curl -fL --retry 3 \
+      https://bitbucket.org/JesusFreke/smali/downloads/baksmali-2.4.0.jar \
+      -o "$BAKSMALI_PATH" \
+    && curl -fL --retry 3 \
+      https://github.com/bttv-android/build-companion/releases/download/v5.2.0/build-companion \
+      -o "$BUILD_COMPANION" \
+    && chmod +x "$BUILD_COMPANION"
+
+RUN git config --global user.email 'builder@example.invalid' \
+    && git config --global user.name 'BTTV Local Builder' \
+    && mkdir -p /root/.gradle \
+    && printf 'org.gradle.daemon=false\n' >> /root/.gradle/gradle.properties
+
+WORKDIR /usr/build
+RUN mkdir -p dist
+COPY disassemble build buildsource patch initworkspace /usr/build/
+CMD ["sleep", "infinity"]

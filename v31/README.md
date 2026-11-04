@@ -1,46 +1,77 @@
-# Twitch 31.5.2
+# BTTV PR #740 rebased to Twitch 31.8.0 (source-only candidate)
 
-Since Twitch moved the stream page and the chat to React Native, the Java chat classes the patches in `patches/` target are still part of the app, but not used anymore. The scripts in this directory build the mod for Twitch 31.5.2 in a different way: a few calls to `bttv.api.Hooks` are inserted below React Native, where chat messages, images and requests pass through Java.
+**Base:** `bttv-android/bttv` PR #740, commit `46accb0`. This branch deliberately
+**does not contain PR #741** and does not migrate the 31.2.0-era `patches/live`
+infrastructure. Its React Native chat, picker, and input implementations remain
+PR #740's (`bttv.api.Hooks`, `IrcEmotes`, `RNEmoteMenu`, etc.).
 
-| Hook | What the mod does there |
-| --- | --- |
-| `TwitchApplication.onCreate` | gets the application context, loads the global emotes |
-| incoming websocket text | adds BTTV, FFZ and 7TV emotes to the `emotes` tag of chat messages, with the id `BTTV-<id>` |
-| image source | replaces the urls of emotes with a `BTTV-<id>` id |
-| http request | answers the `EmoteCard` request for our emotes, adds our emotes to the `ChatEmoteSets` answer (emote menu) |
-| text layout | wording of the emote card, wider slot for wide emotes |
-| image view layout | makes the image view of a wide emote as wide as its slot |
-| chat input (`com.twitchrn.emoteinput`) | url, width and animation of our emotes in the input box, images are read from the chat's disk cache (Fresco) |
+## Rebase changes
 
-Not ported yet: settings, badges and everything else the mod did before. All providers are always enabled.
+The `apply_hooks.sh` script now calls a small fail-closed 31.8.0 relocator. Each
+hook is based on a location present in the supplied `slop` branch's 31.8.0
+patches. It patches 8 files in the decoded base APK:
 
-## Build
+- `TwitchApplication`: set context / start loading emote catalogs.
+- `fy90.n`: React Native WebSocket chat listener.
+- `NetworkingModule.sendRequest`: use PR #740's EmoteCard and ChatEmoteSets handler.
+- `ReactImageManager`: copy-on-write image source URI rewriting; replaced
+  the old `knl` constructor hook whose 31.8.0 identity is unverified.
+- `TwitchEmoteInputView$EmoteSpanTarget`: input emote URLs.
+- `EmoteImageLoader`: emote cache bitmap fallback.
+- `EmoteImageSpan`: animated input rendering site.
+- `TwitchEmoteInputView`: attached input animation callback.
 
-The resources are not rebuilt and the split apks are not merged, apktool's output for this version crashes. Only the code of the base apk is changed, then the base apk and the original splits are signed with the same key.
+The builder allocates a fresh DEX after the highest existing `smali_classesN`,
+so it does not overwrite native 31.8.0 DEX code. The build uses the original
+Twitch base and untouched splits (from `twitch.zip`), preserving PR #740's
+build method. Network callers no longer require unshaded `okhttp3.*` at runtime.
+The existing legacy badge/updater classes were adjusted only to remove their
+OkHttp linkage; these features were not independently ported or enabled in RN.
 
-1. Get the Twitch 31.5.2 bundle (e.g. the `.apkm` from apkmirror) and put it in the root of the repo as `twitch.zip`.
-2. Start the builder with the repo mounted and copy the scripts:
-   ```
+## Build (requires a legally obtained, unmodified Twitch 31.8.0 split bundle)
+
+1. Place the **31.8.0** Twitch `.apkm` ZIP at repo root as `twitch.zip`.
+2. Follow the Docker builder setup from the original PR #740 instructions:
+
+   ```sh
    docker run -d --name bttv --entrypoint sleep -v "$(pwd)":/repo ghcr.io/bttv-android/builder infinity
    docker exec bttv bash -c 'cp /repo/v31/*.sh /usr/build/'
-   ```
-3. Once per bundle: `docker exec bttv bash /usr/build/setup.sh`
-4. After every change: `docker exec bttv bash -c 'cd /usr/build && bash apply_hooks.sh && bash build_mod.sh'`
-5. Install the base apk and the splits that match your device:
-   ```
-   adb install-multiple -r dist/splits/base.apk dist/splits/split_config.arm64_v8a.apk dist/splits/split_config.xxhdpi.apk
+   docker exec bttv bash /usr/build/setup.sh
+   docker exec bttv bash -c 'cd /usr/build && bash apply_hooks.sh && bash build_mod.sh'
    ```
 
-The mod is its own app, it can be installed next to the official one. By default it is called `BTTV` with the package `tv.twitch.bttvandroid.app`, like the releases of this project. A build signed with another key can not replace an installed one, so use another package during development:
+3. Check the generated `dist/splits` package. Install via `adb install-multiple -r`
+   with the base and the matching device splits, **not** an arbitrary mixture of
+   ABI/density splits. Do not uninstall the existing app to overcome a signing
+   mismatch: that can erase app data.
 
+To inspect hook compatibility without modifying the decoded Twitch files:
+
+```sh
+python3 v31/apply_hooks_31_8.py --work /path/to/decoded/base --check
 ```
-docker exec -e BTTV_PACKAGE=tv.twitch.bttvandroid.dev -e BTTV_NAME=BTTV2 bttv bash -c 'cd /usr/build && bash build_mod.sh'
-```
 
-`RenamePackage.java` changes the package in the compiled manifests and resource tables of the base apk and the splits. Parts of the app that use the package name of the official app directly (and not the one of the installed app) can break.
+## Scope / unverified
 
-## New Twitch version
+This is a **clean, source-only port candidate**, not a verified working APK.
+The supplied Git bundle includes **no Twitch 31.8.0 APK or decoded smali**, so
+we cannot run a genuine `apktool`/DEX build or runtime verification here. The
+script fails rather than patching unrecognized method signatures. Twitch UI
+behavior is not guaranteed, even if all 8 sites patch successfully.
 
-The classes with short names in `apply_hooks.sh` are obfuscated and get new names with every release. The comments in the script say what each of them is, most can be found from classes of React Native that keep their names (`WebSocketModule`, `ReactImageManager`, `NetworkingModule`, `SurfaceMountingManager`).
+The following PR #740 hooks were **not** copied to 31.8.0 because their method
+and register mappings were not established in the supplied source:
 
-Before building on a hook, check that it is called (e.g. with a build that only logs), code that is part of the app is not necessarily used.
+- old `fw30` text-transform hook (EmoteCard presentation);
+- `jt30`, `hcw`, and `SurfaceMountingManager` wide-emote layout and slot hooks;
+- input span width/right-edge modifications (the 31.5.2 instruction layouts
+  must not be assumed unchanged).
+
+PR #740 did not implement BTTV settings, badges, native channel points,
+updaters or other #741 additions. Legacy sources remain in the upstream
+repository, but this port does not claim to activate them. The **31.8.0
+React Native chat and emote paths** are the focus here. The older PR #740's
+known stress/emote-spam stability issue is not fixed by this rebase.
+
+The original `slop` branch's debugging snapshots, backup patches, forensic
+PowerShell scripts, 31.2.0-specific code and duplicate smali assets are excluded.

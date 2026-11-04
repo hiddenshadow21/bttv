@@ -33,10 +33,30 @@ unzip -q -o mod/consumer/build/outputs/apk/release/consumer-release-unsigned.apk
 java -jar $BAKSMALI_PATH d -o modsmali/out modsmali/classes.dex
 find modsmali/out/bttv -type f -exec sed -i -e 's/BTTVDefaultConstructorMarker/DefaultConstructorMarker/g' {} \;
 
-# only the mod's own package, as its own dex file
-rm -rf work/smali_classes7
-mkdir -p work/smali_classes7
-cp -r modsmali/out/bttv work/smali_classes7/bttv
+# Put mod code into a NEW DEX. 31.8.0 may already have classes7.dex;
+# deleting smali_classes7 (as the 31.5.2 build did) would destroy Twitch code.
+if [ -f work/.bttv-generated-dex-dir ]; then
+  previous=$(cat work/.bttv-generated-dex-dir)
+  if [[ "$previous" =~ ^smali_classes[0-9]+$ ]]; then
+    rm -rf "work/$previous"
+  else
+    echo "Invalid previous DEX marker" >&2
+    exit 1
+  fi
+fi
+max_dex=1
+for d in work/smali_classes[0-9]*; do
+  [ -d "$d" ] || continue
+  dex_num=${d##*smali_classes}
+  if [[ "$dex_num" =~ ^[0-9]+$ ]] && (( 10#$dex_num > max_dex )); then
+    max_dex=$((10#$dex_num))
+  fi
+done
+mod_dir="smali_classes$((max_dex + 1))"
+mkdir -p "work/$mod_dir"
+cp -r modsmali/out/bttv "work/$mod_dir/bttv"
+printf '%s\n' "$mod_dir" > work/.bttv-generated-dex-dir
+echo "BTTV classes -> $mod_dir"
 
 echo "== rename package"
 rm -rf out && mkdir -p out/s out/tool
