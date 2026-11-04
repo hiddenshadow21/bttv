@@ -1,22 +1,62 @@
-diff --git a/smali/jc2.smali b/smali/jc2.smali
---- a/smali/jc2.smali
-+++ b/smali/jc2.smali
-@@ -11757,14 +11757,8 @@
+diff --git a/smali/je2.smali b/smali/je2.smali
+--- a/smali/je2.smali
++++ b/smali/je2.smali
+@@ -12878,15 +12878,12 @@
+ 
      .line 144
      .line 145
--    invoke-virtual {v0}, Lg86;->a()Landroid/text/SpannedString;
--
--    .line 146
--    .line 147
--    .line 148
+-    invoke-virtual {v0}, Lwa6;->a()Landroid/text/SpannedString;
++    invoke-static {v0}, Lbttv/api/DeletedSpecialRows;->restore(Lwa6;)Landroid/text/Spanned;
+ 
+     .line 146
+     .line 147
+     .line 148
 -    move-result-object v1
-+    invoke-static {v0}, Lbttv/api/DeletedSpecialRows;->restore(Lg86;)Landroid/text/Spanned;
-+
 -
 -    .line 149
 -    move-object v11, v1
 +    move-result-object v11
--
-+
+ 
      .line 150
      goto :goto_4
+diff --git a/smali_classes7/bttv/api/DeletedSpecialRows.smali b/smali_classes7/bttv/api/DeletedSpecialRows.smali
+--- a/smali_classes7/bttv/api/DeletedSpecialRows.smali
++++ b/smali_classes7/bttv/api/DeletedSpecialRows.smali
+@@ -1,14 +1,14 @@
+ .class public final Lbttv/api/DeletedSpecialRows;
+ .super Ljava/lang/Object;
+ 
+-.method public static restore(Lg86;)Landroid/text/Spanned;
++.method public static restore(Lwa6;)Landroid/text/Spanned;
+     .locals 5
+ 
+-    invoke-virtual {p0}, Lg86;->a()Landroid/text/SpannedString;
++    invoke-virtual {p0}, Lwa6;->a()Landroid/text/SpannedString;
+     move-result-object v0
+ 
+     :try_start_restore
+-    iget-object v1, p0, Lg86;->e:Ljava/lang/CharSequence;
++    iget-object v1, p0, Lwa6;->e:Ljava/lang/CharSequence;
+     instance-of v2, v1, Landroid/text/Spanned;
+     if-eqz v2, :return_stock
+ 
+@@ -18,7 +18,7 @@
+     if-lez v2, :return_stock
+ 
+     const/4 v3, 0x0
+-    const-class v4, Lied;
++    const-class v4, Lkkd;
+     invoke-interface {v1, v3, v2, v4}, Landroid/text/Spanned;->getSpans(IILjava/lang/Class;)[Ljava/lang/Object;
+     move-result-object v1
+ 
+@@ -28,8 +28,8 @@
+ 
+     const/4 v2, 0x0
+     aget-object v1, v1, v2
+-    check-cast v1, Lied;
+-    iget-object v2, v1, Lied;->b:Landroid/text/SpannedString;
++    check-cast v1, Lkkd;
++    iget-object v2, v1, Lkkd;->b:Landroid/text/SpannedString;
+     if-eqz v2, :return_stock
+ 
+     invoke-static {v0, v1, v2}, Lbttv/api/DeletedMessages;->restoreSpecialContainer(Landroid/text/Spanned;Ljava/lang/Object;Landroid/text/Spanned;)Landroid/text/Spanned;

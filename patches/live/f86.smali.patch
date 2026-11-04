@@ -1,58 +1,68 @@
-diff --git a/smali_classes2/f86.smali b/smali_classes2/f86.smali
---- a/smali_classes2/f86.smali
-+++ b/smali_classes2/f86.smali
-@@ -158,6 +158,16 @@
-     .line 60
-     .line 61
-     :goto_5
-+    iget-object v0, v10, Ly86;->b:Ljava/lang/String;
-+
-+    iget-object v1, v10, Ly86;->c:Ljava/lang/String;
-+
-+    move-object/from16 v2, p5
-+
-+    invoke-static {v2, v8, v0, v1, v5}, Lbttv/highlight/LiveHighlightBridge;->replace(Ljava/util/List;Lfmp;Ljava/lang/String;Ljava/lang/String;Lenj;)Lenj;
-+
-+    move-result-object v5
-+
-     invoke-virtual/range {p0 .. p0}, Ljava/lang/Object;->getClass()Ljava/lang/Class;
-
-     .line 62
-@@ -734,6 +744,12 @@
-     .line 300
-     .line 301
+diff --git a/smali_classes2/va6.smali b/smali_classes2/va6.smali
+--- a/smali_classes2/va6.smali
++++ b/smali_classes2/va6.smali
+@@ -489,6 +489,12 @@
+     new-instance v0, Landroid/text/SpannedString;
+ 
      invoke-direct {v0, v6}, Landroid/text/SpannedString;-><init>(Ljava/lang/CharSequence;)V
-
-+    iget-object v14, v10, Ly86;->a:Ljava/lang/String;
 +
++    iget-object v14, v10, Lob6;->a:Ltv/twitch/android/models/Tuid;
++    invoke-virtual {v14}, Ltv/twitch/android/models/Tuid;->toString()Ljava/lang/String;
++    move-result-object v14
 +    invoke-static {v1, v0, v14}, Lbttvcompat/LiveBadgeBridge;->augment(Landroid/content/Context;Landroid/text/SpannedString;Ljava/lang/String;)Landroid/text/SpannedString;
-+
 +    move-result-object v0
-+
-     .line 302
-     .line 303
-@@ -3352,8 +3368,13 @@
-     .line 30
+ 
+     if-eqz v11, :cond_c
+ 
+@@ -2976,6 +2982,11 @@
      :goto_1
-     iget-object v2, p0, Lf86;->a:Lqz0;
-
-+    iget-object v4, p4, Lfmp;->b:Ljava/lang/String;
+     iget-object v2, p0, Lva6;->a:Lo01;
+ 
++    iget-object v4, p4, Lvwp;->b:Ljava/lang/String;
 +    invoke-static {v1, v4}, Lbttv/emote/LiveEmotes;->urlForMarker(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
 +    move-result-object v4
-+    if-nez v4, :bttv31_url_ready
++    if-nez v4, :bttv318_url_ready
 +
      .line 31
      .line 32
-     invoke-static {v2, p1, v1, p5}, Lqz0;->b(Lqz0;Landroid/content/Context;Ljava/lang/String;F)Lpz0;
-
-@@ -3363,8 +3384,10 @@
-     move-result-object p5
-
+     invoke-static {v2, p1, v1, p5}, Lo01;->b(Lo01;Landroid/content/Context;Ljava/lang/String;F)Ln01;
+@@ -2988,6 +2999,7 @@
      .line 36
-     iget-object v4, p5, Lpz0;->a:Ljava/lang/String;
-
-+    :bttv31_url_ready
-+
+     iget-object v4, p5, Ln01;->a:Ljava/lang/String;
+ 
++    :bttv318_url_ready
      .line 37
      .line 38
-     new-instance v2, Lr360;
+     new-instance v2, Ldv60;
+diff --git a/smali_classes7/bttvcompat/LiveBadgeBridge.smali b/smali_classes7/bttvcompat/LiveBadgeBridge.smali
+--- a/smali_classes7/bttvcompat/LiveBadgeBridge.smali
++++ b/smali_classes7/bttvcompat/LiveBadgeBridge.smali
+@@ -22,11 +22,11 @@
+     new-instance v3, Landroid/text/SpannableStringBuilder;
+     invoke-direct {v3, p1}, Landroid/text/SpannableStringBuilder;-><init>(Ljava/lang/CharSequence;)V
+     const-string v4, ""
+-    sget-object v5, Ll5p;->Badge:Ll5p;
+-    new-instance v6, Lr360;
++    sget-object v5, Lcgp;->Badge:Lcgp;
++    new-instance v6, Ldv60;
+     const/4 v7, 0x4
+-    invoke-direct {v6, v4, v5, v7}, Lr360;-><init>(Ljava/lang/String;Ll5p;I)V
+-    invoke-static {p0, v6}, Laaj;->g(Landroid/content/Context;Lr360;)I
++    invoke-direct {v6, v4, v5, v7}, Ldv60;-><init>(Ljava/lang/String;Lcgp;I)V
++    invoke-static {p0, v6}, Lxjj;->g(Landroid/content/Context;Ldv60;)I
+     move-result v6
+     if-lez v6, :original
+     invoke-interface {v2}, Ljava/util/List;->iterator()Ljava/util/Iterator;
+@@ -52,10 +52,10 @@
+     new-instance v0, Landroid/graphics/drawable/BitmapDrawable;
+     invoke-direct {v0, v8, v4}, Landroid/graphics/drawable/BitmapDrawable;-><init>(Landroid/content/res/Resources;Landroid/graphics/Bitmap;)V
+     invoke-virtual {v0, v1, v1, v6, v6}, Landroid/graphics/drawable/Drawable;->setBounds(IIII)V
+-    new-instance v4, Ldu4;
++    new-instance v4, Lvw4;
+     invoke-direct {v4, v0}, Landroid/text/style/ImageSpan;-><init>(Landroid/graphics/drawable/Drawable;)V
+     const/4 v0, 0x0
+-    iput-object v0, v4, Ldu4;->a:Ljava/lang/Integer;
++    iput-object v0, v4, Lvw4;->a:Ljava/lang/Integer;
+     const/16 v0, 0x11
+     invoke-virtual {v3, v4, v5, v7, v0}, Landroid/text/SpannableStringBuilder;->setSpan(Ljava/lang/Object;III)V
+     goto :next_badge

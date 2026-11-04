@@ -1,12 +1,16 @@
-diff --git a/smali/ilg.smali b/smali/ilg.smali
---- a/smali/ilg.smali
-+++ b/smali/ilg.smali
-@@ -1180,6 +1180,8 @@
-     .line 6
-     .line 7
-     check-cast v0, Ltv/twitch/android/app/consumer/TwitchApplication;
+diff --git a/smali/tv/twitch/android/app/consumer/TwitchApplication.smali b/smali/tv/twitch/android/app/consumer/TwitchApplication.smali
+--- a/smali/tv/twitch/android/app/consumer/TwitchApplication.smali
++++ b/smali/tv/twitch/android/app/consumer/TwitchApplication.smali
+@@ -1077,10 +1077,12 @@
+     invoke-virtual {v1}, Ltv/twitch/android/app/consumer/TwitchApplication;->b()V
+ 
+     # BTTV: initialize the shared application context after Application.onCreate().
+     invoke-static {v1}, Lbttv/Data;->setContext(Landroid/content/Context;)V
+ 
++    invoke-static {v1}, Lbttv/AnonChat;->initialize(Landroid/content/Context;)V
 +
-+    invoke-static {v0}, Lbttv/AnonChat;->initialize(Landroid/content/Context;)V
-
-     .line 8
-     .line 9
+     .line 336
+     .line 337
+     .line 338
+     new-instance v0, Lrap;
+ 

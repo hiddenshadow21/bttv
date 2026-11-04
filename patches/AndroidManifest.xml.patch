@@ -1,4 +1,5 @@
 diff --git a/AndroidManifest.xml b/AndroidManifest.xml
+index afdcce1..e39460b 100644
 --- a/AndroidManifest.xml
 +++ b/AndroidManifest.xml
 @@ -1,4 +1,15 @@
@@ -7,7 +8,7 @@ diff --git a/AndroidManifest.xml b/AndroidManifest.xml
 +<manifest
 +    xmlns:android="http://schemas.android.com/apk/res/android"
 +    android:versionCode="01208000338"
-+    android:versionName="0.43.2-beta"
++    android:versionName="0.44.0-beta"
 +    android:compileSdkVersion="37"
 +    android:compileSdkVersionCodename="17"
 +    android:installLocation="auto"
@@ -18,7 +19,7 @@ diff --git a/AndroidManifest.xml b/AndroidManifest.xml
      <uses-feature android:name="android.hardware.type.pc" android:required="false"/>
      <uses-feature android:name="android.hardware.touchscreen" android:required="false"/>
      <queries>
-@@ -68,14 +78,14 @@
+@@ -71,14 +82,14 @@
      <uses-feature android:glEsVersion="0x00020000" android:required="true"/>
      <uses-permission android:name="com.android.vending.BILLING"/>
      <uses-permission android:name="com.google.android.c2dm.permission.RECEIVE"/>
@@ -36,7 +37,7 @@ diff --git a/AndroidManifest.xml b/AndroidManifest.xml
          <profileable android:shell="true"/>
          <meta-data android:name="WindowManagerPreference:FreeformWindowSize" android:value="phone"/>
          <meta-data android:name="WindowManagerPreference:FreeformWindowOrientation" android:value="portrait"/>
-@@ -188,15 +198,15 @@
+@@ -191,14 +202,14 @@
                  <action android:name="android.intent.action.MEDIA_BUTTON"/>
              </intent-filter>
          </service>
@@ -46,7 +47,6 @@ diff --git a/AndroidManifest.xml b/AndroidManifest.xml
          </provider>
 -        <provider android:authorities="tv.twitch.android.app.androidx-startup" android:exported="false" android:name="androidx.startup.InitializationProvider">
 +        <provider android:authorities="tv.twitch.bttvandroid.app.androidx-startup" android:exported="false" android:name="androidx.startup.InitializationProvider">
-             <meta-data android:name="androidx.emoji2.text.EmojiCompatInitializer" android:value="androidx.startup"/>
              <meta-data android:name="androidx.lifecycle.ProcessLifecycleInitializer" android:value="androidx.startup"/>
              <meta-data android:name="androidx.profileinstaller.ProfileInstallerInitializer" android:value="androidx.startup"/>
          </provider>
@@ -55,7 +55,7 @@ diff --git a/AndroidManifest.xml b/AndroidManifest.xml
          <meta-data android:name="io.branch.sdk.BranchKey" android:value="key_live_jgBdao5vVtyZ3hdckxy8jlkkzqooQltZ"/>
          <meta-data android:name="io.branch.sdk.BranchKey.test" android:value="key_test_ihwekj3sRzu1ZabcguF3EcpoDEieSnSn"/>
          <meta-data android:name="io.branch.sdk.TestMode" android:value="false"/>
-@@ -226,7 +236,7 @@
+@@ -228,7 +239,7 @@
                  <action android:name="android.intent.action.VIEW"/>
                  <category android:name="android.intent.category.DEFAULT"/>
                  <category android:name="android.intent.category.BROWSABLE"/>
@@ -64,8 +64,8 @@ diff --git a/AndroidManifest.xml b/AndroidManifest.xml
              </intent-filter>
          </activity>
          <activity android:name="tv.twitch.android.core.crashreporter.QaErrorActivity"/>
-@@ -252,7 +262,7 @@
-         <service android:exported="false" android:name="com.google.android.gms.cast.framework.ReconnectionService"/>
+@@ -264,7 +275,7 @@
+         <activity android:excludeFromRecents="true" android:exported="false" android:launchMode="singleTask" android:name="com.hotupdater.HotUpdaterRestartActivity" android:noHistory="true" android:process=":hotupdater_restart" android:theme="@android:style/Theme.NoDisplay"/>
          <meta-data android:name="io.sentry.auto-init" android:value="false"/>
          <receiver android:exported="false" android:name="com.twitchrn.player.TwitchRNMediaButtonReceiver"/>
 -        <provider android:authorities="tv.twitch.android.app.fileprovider" android:exported="false" android:grantUriPermissions="true" android:name="com.reactnativecommunity.webview.RNCWebViewFileProvider">
@@ -73,7 +73,7 @@ diff --git a/AndroidManifest.xml b/AndroidManifest.xml
              <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_provider_paths"/>
          </provider>
          <meta-data android:name="org.unimodules.core.AppLoader#react-native-headless" android:value="expo.modules.adapters.react.apploader.RNHeadlessAppLoader"/>
-@@ -297,8 +307,8 @@
+@@ -310,8 +321,8 @@
          <activity android:exported="false" android:name="com.google.android.gms.common.api.GoogleApiActivity" android:theme="@android:style/Theme.Translucent.NoTitleBar"/>
          <meta-data android:name="com.bumptech.glide.integration.okhttp3.OkHttpGlideModule" android:value="GlideModule"/>
          <activity android:exported="false" android:name="com.google.android.play.agesignals.AgeSharingConsentWrapperActivity" android:stateNotNeeded="true" android:theme="@style/Theme.Play.AgeSignals.Transparent"/>
@@ -84,7 +84,7 @@ diff --git a/AndroidManifest.xml b/AndroidManifest.xml
          <service android:enabled="false" android:exported="false" android:name="com.google.firebase.sessions.SessionLifecycleService"/>
          <receiver android:directBootAware="false" android:enabled="true" android:exported="true" android:name="androidx.profileinstaller.ProfileInstallReceiver" android:permission="android.permission.DUMP">
              <intent-filter>
-@@ -322,7 +332,7 @@
+@@ -335,10 +346,10 @@
          </service>
          <service android:exported="false" android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.JobInfoSchedulerService" android:permission="android.permission.BIND_JOB_SERVICE"/>
          <receiver android:exported="false" android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.AlarmManagerSchedulerBroadcastReceiver"/>
@@ -92,8 +92,12 @@ diff --git a/AndroidManifest.xml b/AndroidManifest.xml
 +        <provider android:authorities="tv.twitch.bttvandroid.app.SentryNdkPreloadProvider" android:exported="false" android:initOrder="2000000000" android:name="io.sentry.ndk.SentryNdkPreloadProvider"/>
          <activity android:exported="false" android:name="com.google.android.play.core.common.PlayCoreDialogWrapperActivity" android:stateNotNeeded="true" android:theme="@style/Theme.PlayCore.Transparent"/>
          <activity android:name="com.amazon.identity.auth.device.activity.GetAuthenticatorResultsActivity" android:theme="@style/TransparentActivityTheme"/>
-         <activity android:configChanges="@integer/config_maskLocaleOrientationKeyboardKeyboardHiddenLayoutDirectionScreenSize" android:exported="false" android:label="Update Pin Preference UI" android:name="com.amazon.identity.auth.device.activity.ActorUpdatePinPreferenceActivity" android:permission="com.amazon.identity.auth.device.perm.AUTH_SDK"/>
-@@ -354,6 +364,7 @@
+-        <provider android:authorities="com.amazon.identity.auth.device.CrossAppContextProvider.tv.twitch.android.app" android:directBootAware="true" android:exported="true" android:name="com.amazon.identity.auth.device.api.CrossAppContextProvider">
++        <provider android:authorities="com.amazon.identity.auth.device.CrossAppContextProvider.tv.twitch.bttvandroid.app" android:directBootAware="true" android:exported="true" android:name="com.amazon.identity.auth.device.api.CrossAppContextProvider">
+             <intent-filter>
+                 <action android:name="com.amazon.identity.action.CROSS_APP_CONTEXT_PROVIDER"/>
+             </intent-filter>
+@@ -372,6 +383,7 @@
                  <action android:name="com.amazon.dcp.sso.action.session.users.changed"/>
              </intent-filter>
          </receiver>

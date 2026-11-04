@@ -1,11 +1,13 @@
-diff --git a/smali_classes2/e66.smali b/smali_classes2/e66.smali
---- a/smali_classes2/e66.smali
-+++ b/smali_classes2/e66.smali
-@@ -422,5 +422,16 @@
-     iput-object p1, p0, Le66;->r:Lmlp;
-
+diff --git a/smali_classes2/t86.smali b/smali_classes2/t86.smali
+--- a/smali_classes2/t86.smali
++++ b/smali_classes2/t86.smali
+@@ -419,8 +419,19 @@
+     .line 202
+     .line 203
+     iput-object p1, p0, Lt86;->r:Lcwp;
+ 
 +    :try_start_bttv_autocomplete_attach
-+    iget-object v0, v0, Lb00;->f:Ljava/lang/Object;
++    iget-object v0, v0, Lh00;->f:Ljava/lang/Object;
 +    check-cast v0, Landroid/widget/EditText;
 +    invoke-static {v0}, Lbttv/emote/LiveEmoteAutocomplete;->attach(Landroid/widget/EditText;)V
 +    :try_end_bttv_autocomplete_attach
@@ -17,15 +19,17 @@ diff --git a/smali_classes2/e66.smali b/smali_classes2/e66.smali
 +    :bttv_autocomplete_attached
      .line 204
      .line 205
-     new-instance p1, Lc66;
-@@ -482,6 +493,10 @@
+     new-instance p1, Lr86;
+ 
+@@ -481,8 +492,11 @@
+     .line 3
      .line 4
-     iget-boolean v0, p1, Ld66;->a:Z
-
+     iget-boolean v0, p1, Ls86;->a:Z
+ 
 +    invoke-static {v0}, Lbttv/AnonChat;->allowComposer(Z)Z
-+
 +    move-result v0
 +
      .line 5
      .line 6
      invoke-virtual {p0, v0}, Ltv/twitch/android/core/mvp/viewdelegate/BaseViewDelegate;->r(Z)V
+ 

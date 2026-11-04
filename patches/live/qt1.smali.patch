@@ -1,8 +1,9 @@
-diff --git a/smali_classes2/qt1.smali b/smali_classes2/qt1.smali
---- a/smali_classes2/qt1.smali
-+++ b/smali_classes2/qt1.smali
-@@ -263,6 +263,20 @@
-
+diff --git a/smali_classes2/fv1.smali b/smali_classes2/fv1.smali
+--- a/smali_classes2/fv1.smali
++++ b/smali_classes2/fv1.smali
+@@ -262,8 +262,22 @@
+     if-eqz v3, :cond_3
+ 
      .line 88
      .line 89
 +    :try_start_bttv_ac_url
@@ -19,14 +20,17 @@ diff --git a/smali_classes2/qt1.smali b/smali_classes2/qt1.smali
 +    move-object p0, v4
 +    goto :bttv_ac_url_ready
 +    :bttv_ac_stock_url
-     iget-object p0, p0, Lqt1;->c:Lqz0;
-
+     iget-object p0, p0, Lfv1;->c:Lo01;
+ 
      .line 90
-@@ -295,6 +309,7 @@
+     .line 91
+@@ -294,8 +308,9 @@
+     .line 104
      move-result-object p0
-
+ 
      .line 105
 +    :bttv_ac_url_ready
      invoke-virtual {v2, p0}, Ltv/twitch/android/shared/ui/elements/image/NetworkImageWidget;->setImageURL(Ljava/lang/String;)V
-
+ 
      .line 106
+     .line 107

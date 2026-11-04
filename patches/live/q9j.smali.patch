@@ -1,19 +1,19 @@
-diff --git a/smali_classes2/q9j.smali b/smali_classes2/q9j.smali
---- a/smali_classes2/q9j.smali
-+++ b/smali_classes2/q9j.smali
-@@ -13,4 +13,6 @@
+--- a/smali_classes2/njj.smali
++++ b/smali_classes2/njj.smali
+@@ -12,6 +12,8 @@
+ 
  .field public d:Z
--
--
-+
+ 
 +.field public e:Landroid/graphics/drawable/Drawable$Callback;
 +
-+
+ 
  # virtual methods
-@@ -22,4 +24,23 @@
+ .method public final onLoadCleared(Landroid/graphics/drawable/Drawable;)V
+@@ -23,6 +25,24 @@
+     .line 2
      .line 3
-     iget-object p1, p0, Lr360;->d:Landroid/graphics/drawable/Drawable;
-+    iget-object v0, p0, Lr360;->a:Ljava/lang/String;
+     iget-object p1, p0, Ldv60;->d:Landroid/graphics/drawable/Drawable;
++    iget-object v0, p0, Ldv60;->a:Ljava/lang/String;
 +    invoke-static {v0}, Lbttv/emote/LiveEmotes;->isThirdPartyUrl(Ljava/lang/String;)Z
 +    move-result v0
 +
@@ -31,36 +31,38 @@ diff --git a/smali_classes2/q9j.smali b/smali_classes2/q9j.smali
 +    invoke-virtual {p1, v0}, Landroid/graphics/drawable/Drawable;->setCallback(Landroid/graphics/drawable/Drawable$Callback;)V
 +
 +    :bttv31_clear_done
-+
--
-+
+ 
      .line 4
-@@ -69,4 +90,4 @@
- .method public final onResourceReady(Ljava/lang/Object;Luf40;)V
+     .line 5
+@@ -67,7 +87,7 @@
+ .end method
+ 
+ .method public final onResourceReady(Ljava/lang/Object;Ld350;)V
 -    .locals 6
 +    .locals 7
--
-+
+ 
      .line 1
-@@ -75,5 +96,7 @@
+     check-cast p1, Landroid/graphics/drawable/Drawable;
+@@ -75,6 +95,8 @@
      .line 2
      .line 3
-     iget-object p2, p0, Lq9j;->b:Lr360;
+     iget-object p2, p0, Lnjj;->b:Ldv60;
 +
-+    iget-object v6, p0, Lq9j;->e:Landroid/graphics/drawable/Drawable$Callback;
--
-+
++    iget-object v6, p0, Lnjj;->e:Landroid/graphics/drawable/Drawable$Callback;
+ 
      .line 4
-@@ -331,3 +354,33 @@
+     .line 5
+@@ -331,6 +353,36 @@
+     .line 116
      .line 117
      .line 118
-+    iget-object v0, p2, Lr360;->a:Ljava/lang/String;
++    iget-object v0, p2, Ldv60;->a:Ljava/lang/String;
 +    invoke-static {v0}, Lbttv/emote/LiveEmotes;->isThirdPartyUrl(Ljava/lang/String;)Z
 +    move-result v0
 +
 +    if-eqz v0, :bttv31_store_drawable
 +
-+    iget-object v0, p2, Lr360;->d:Landroid/graphics/drawable/Drawable;
++    iget-object v0, p2, Ldv60;->d:Landroid/graphics/drawable/Drawable;
 +    instance-of v1, v0, Landroid/graphics/drawable/Animatable;
 +
 +    if-eqz v1, :bttv31_start_new
@@ -84,4 +86,6 @@ diff --git a/smali_classes2/q9j.smali b/smali_classes2/q9j.smali
 +    invoke-interface {v0}, Landroid/graphics/drawable/Animatable;->start()V
 +
 +    :bttv31_store_drawable
-     iput-object p1, p2, Lr360;->d:Landroid/graphics/drawable/Drawable;
+     iput-object p1, p2, Ldv60;->d:Landroid/graphics/drawable/Drawable;
+ 
+     .line 119

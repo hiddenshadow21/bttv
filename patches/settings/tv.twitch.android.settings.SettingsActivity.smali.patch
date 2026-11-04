@@ -1,12 +1,14 @@
 diff --git a/smali_classes7/tv/twitch/android/settings/SettingsActivity.smali b/smali_classes7/tv/twitch/android/settings/SettingsActivity.smali
 --- a/smali_classes7/tv/twitch/android/settings/SettingsActivity.smali
 +++ b/smali_classes7/tv/twitch/android/settings/SettingsActivity.smali
-@@ -2717,4 +2717,8 @@
+@@ -2307,8 +2307,10 @@
+     .line 10
+     .line 11
+     invoke-virtual {v0, v1, p1}, Landroid/view/MenuInflater;->inflate(ILandroid/view/Menu;)V
+ 
++    invoke-static {p0, p1}, Lbttv/settings/SettingsNavigation;->install(Landroid/app/Activity;Landroid/view/Menu;)V
++
      .line 12
      .line 13
      .line 14
-+    invoke-static {p0, p1}, Lbttv/settings/SettingsNavigation;->install(Landroid/app/Activity;Landroid/view/Menu;)V
-+
-+    .line 15
-+    .line 16
-     iget-object v0, p0, Ltv/twitch/android/settings/SettingsActivity;->M:Landroidx/appcompat/widget/Toolbar;
+     iget-object v0, p0, Ltv/twitch/android/settings/SettingsActivity;->l:Landroidx/appcompat/widget/Toolbar;

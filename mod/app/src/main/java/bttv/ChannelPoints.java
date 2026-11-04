@@ -1,5 +1,6 @@
 package bttv;
 
+import android.util.Log;
 import android.view.View.OnClickListener;
 
 import java.util.HashSet;
@@ -18,10 +19,11 @@ public class ChannelPoints {
     }
 
     public static boolean shouldAutoRedeem(String claimId) {
-        return shouldAutoRedeem(
-                claimId,
-                ResUtil.getBooleanFromSettings(Settings.AutoRedeemChannelPointsEnabled)
-        );
+        boolean enabled = ResUtil.getBooleanFromSettings(Settings.AutoRedeemChannelPointsEnabled);
+        boolean shouldClaim = shouldAutoRedeem(claimId, enabled);
+        // This logs the decision, not a successful server redemption.
+        Log.i("BTTV318Points", "auto-claim decision: enabled=" + enabled + ", claim=" + shouldClaim);
+        return shouldClaim;
     }
 
     static synchronized boolean shouldAutoRedeem(String claimId, boolean enabled) {

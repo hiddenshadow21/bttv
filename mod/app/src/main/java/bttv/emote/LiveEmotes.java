@@ -21,6 +21,7 @@ public final class LiveEmotes {
     private static long ffzRequestedAt = -RETRY_AFTER_MS;
     private static long stvRequestedAt = -RETRY_AFTER_MS;
     private static volatile boolean lookupFailureLogged;
+    private static volatile boolean bttv318DiagFirstSplit;
 
     private LiveEmotes() {}
 
@@ -91,6 +92,17 @@ public final class LiveEmotes {
 
     /** Returns null when the original text token should be kept unchanged. */
     public static List<Part> split(String text, String channelId) {
+        if (!bttv318DiagFirstSplit) {
+            bttv318DiagFirstSplit = true;
+            try {
+                Log.i("BTTV318Diag", "LiveEmotes.split entered, contextReady=" + (Data.ctx != null)
+                        + ", globals BTTV=" + Emotes.globalEmotesBTTV.size()
+                        + " FFZ=" + Emotes.globalEmotesFFZ.size()
+                        + " 7TV=" + Emotes.globalEmotes7TV.size());
+            } catch (Throwable ignored) {
+                // Diagnostic logging must not break chat.
+            }
+        }
         if (text == null || text.isEmpty() || Data.ctx == null) {
             return null;
         }

@@ -24,6 +24,9 @@ sed -i "s/android:versionCode=\".*\"/android:versionCode=\"${VERSIONCODE}\"/" "$
 sed -i "s/android:versionName=\".*\"/android:versionName=\"${VERSION}\"/" "$1/AndroidManifest.xml"
 sed -i "s/android:text=\"BTTV .*\"/android:text=\"BTTV ${VERSION}\"/" "$1/res/layout/settings_logout_footer.xml"
 
+# BEGIN BTTV TWITCH 31.8 DEX REBALANCE
+python3 /source/twitch318_dex_rebalance.py --rebalance "$1"
+# END BTTV TWITCH 31.8 DEX REBALANCE
 cd "$1"
 
 APK_PATH=./dist/twitch.apk

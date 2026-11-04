@@ -1,11 +1,11 @@
-diff --git a/smali_classes2/g1d.smali b/smali_classes2/g1d.smali
-index 4eb91d6d7..ed8c17d2e 100644
---- a/smali_classes2/g1d.smali
-+++ b/smali_classes2/g1d.smali
-@@ -2263,6 +2263,15 @@
+diff --git a/smali_classes2/k7d.smali b/smali_classes2/k7d.smali
+--- a/smali_classes2/k7d.smali
++++ b/smali_classes2/k7d.smali
+@@ -2267,10 +2267,19 @@
+ 
+     .line 372
      .line 373
      .line 374
-     .line 375
      :cond_11
 +    move-object/from16 v0, p0
 +
@@ -18,3 +18,6 @@ index 4eb91d6d7..ed8c17d2e 100644
 +    invoke-static {v1, v0}, Lbttv/api/SplitChat;->setBackgroundColor(ILandroid/view/View;)V
      return-void
  .end method
+ 
+ .method public final v()V
+     .locals 4

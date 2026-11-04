@@ -1,7 +1,6 @@
-diff --git a/smali_classes2/blp.smali b/smali_classes2/blp.smali
---- a/smali_classes2/blp.smali
-+++ b/smali_classes2/blp.smali
-@@ -473,6 +473,15 @@
+--- a/smali_classes2/rvp.smali
++++ b/smali_classes2/rvp.smali
+@@ -477,6 +477,15 @@
      .line 63
      .line 64
      invoke-virtual {v1, v3}, Landroid/widget/AutoCompleteTextView;->setAdapter(Landroid/widget/ListAdapter;)V
@@ -14,10 +13,11 @@ diff --git a/smali_classes2/blp.smali b/smali_classes2/blp.smali
 +    :bttv_ac_bind_failed
 +    move-exception v4
 +    :bttv_ac_bound
-
+ 
      .line 65
      .line 66
-@@ -605,4 +614,16 @@
+@@ -608,6 +617,17 @@
+ 
  .method public final F2(Ljava/lang/String;)V
      .locals 7
 +
@@ -31,6 +31,6 @@ diff --git a/smali_classes2/blp.smali b/smali_classes2/blp.smali
 +    :bttv_picker_insert_failed
 +    move-exception v0
 +    :bttv_picker_native_insert
-+
-
+ 
      .line 1
+     invoke-virtual {p1}, Ljava/lang/Object;->getClass()Ljava/lang/Class;

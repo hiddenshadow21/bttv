@@ -1,0 +1,41 @@
+diff --git a/smali_classes3/fy90.smali b/smali_classes3/fy90.smali
+--- a/smali_classes3/fy90.smali
++++ b/smali_classes3/fy90.smali
+@@ -354,6 +354,11 @@
+ .method public final n(Lnpw;Ljava/lang/String;)V
+     .locals 3
+ 
++    # BTTV318-RN: incoming React Native WebSocket text
++    iget v0, p0, Lfy90;->f:I
++    invoke-static {v0, p2}, Lbttv/rn/RNPortHooks;->onWebSocketText(ILjava/lang/String;)Ljava/lang/String;
++    move-result-object p2
++
+     .line 1
+     invoke-virtual {p1}, Ljava/lang/Object;->getClass()Ljava/lang/Class;
+ 
+diff --git a/smali_classes3/com/facebook/react/modules/network/NetworkingModule.smali b/smali_classes3/com/facebook/react/modules/network/NetworkingModule.smali
+--- a/smali_classes3/com/facebook/react/modules/network/NetworkingModule.smali
++++ b/smali_classes3/com/facebook/react/modules/network/NetworkingModule.smali
+@@ -4790,6 +4790,9 @@
+ .method public sendRequest(Ljava/lang/String;Ljava/lang/String;DLcom/facebook/react/bridge/ReadableArray;Lcom/facebook/react/bridge/ReadableMap;Ljava/lang/String;ZDZ)V
+     .locals 1
+ 
++    # BTTV318-RN: observe the active HTTP entry point without changing requests
++    invoke-static {p1, p2}, Lbttv/rn/RNPortHooks;->onHttpRequest(Ljava/lang/String;Ljava/lang/String;)V
++
+     .line 1
+     invoke-static {p1, p2, p7}, Lkgp;->z(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+ 
+diff --git a/smali_classes7/tv/twitch/android/settings/SettingsActivity.smali b/smali_classes7/tv/twitch/android/settings/SettingsActivity.smali
+--- a/smali_classes7/tv/twitch/android/settings/SettingsActivity.smali
++++ b/smali_classes7/tv/twitch/android/settings/SettingsActivity.smali
+@@ -2451,6 +2451,9 @@
+     .line 1
+     invoke-super {p0}, Ldn2;->onResume()V
+ 
++    # BTTV318-RN: brand the actual settings footer TextView after inflation
++    invoke-static {p0}, Lbttv/rn/RNPortHooks;->brandSettings(Landroid/app/Activity;)V
++
+     .line 2
+     .line 3
+     .line 4

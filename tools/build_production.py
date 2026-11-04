@@ -15,7 +15,7 @@ INFRA_INPUTS = (
     "THIRD_PARTY_NOTICES.md",
     "mod/app/src/main/res/raw/bttv_third_party_notices.txt",
     "tools/build_production.py", "tools/docker_build.sh",
-    "tools/prepare_twitch_input.py", "tools/twitch-31.2.0-inputs.json",
+    "tools/prepare_twitch_input.py", "tools/twitch-31.8.0-inputs.json",
     "tools/verify_release_apk.py", "tools/release_metadata.py",
     "tests/stage9_infrastructure.py", "RELEASING.md",
 )

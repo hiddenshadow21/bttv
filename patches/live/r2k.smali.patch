@@ -1,12 +1,17 @@
-diff --git a/smali_classes5/r2k.smali b/smali_classes5/r2k.smali
---- a/smali_classes5/r2k.smali
-+++ b/smali_classes5/r2k.smali
-@@ -12466,6 +12466,8 @@
-     move-object/from16 v18, v9
-
-     .line 45
-+    invoke-static {v9}, Lbttvcompat/NativeSettingsBridge;->drawMain(Lqw9;)V
+diff --git a/smali_classes3/qnc.smali b/smali_classes3/qnc.smali
+index 5b8d1e4..6bc8850 100644
+--- a/smali_classes3/qnc.smali
++++ b/smali_classes3/qnc.smali
+@@ -3290,6 +3290,12 @@
+ .method public q(Lxoz;)V
+     .locals 4
+ 
++    invoke-static {p1, p0}, Lbttvcompat/NativeSettingsBridge;->handleCompose(Lxoz;Ljava/lang/Object;)Z
++    move-result v0
++    if-eqz v0, :bttv_compose_stock
++    return-void
++    :bttv_compose_stock
 +
-     invoke-static/range {v13 .. v19}, Lr2k;->i(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lngi;Lngi;Lqw9;I)V
-
-     const/4 v5, 0x1
+     .line 1
+     iget-object p0, p0, Lqnc;->b:Ljava/lang/Object;
+ 

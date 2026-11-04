@@ -67,6 +67,17 @@ public class Emote {
                 urlBuilder.append('/');
 
                 JSONArray files = hostObj.getJSONArray("files");
+                // Animated 7TV WebP may be decoded only as a still in RN's Fresco pipeline.
+                // Prefer the GIF variant when one is available (PR #740 behavior).
+                String format = "WEBP";
+                if (data.optBoolean("animated")) {
+                    for (int gifIndex = 0; gifIndex < files.length(); gifIndex++) {
+                        if ("GIF".equals(files.getJSONObject(gifIndex).getString("format"))) {
+                            format = "GIF";
+                            break;
+                        }
+                    }
+                }
 
                 // the following is semantically equivalent to this:
                 // - filter out non-webp files
@@ -78,7 +89,7 @@ public class Emote {
 
                 for (int i = 0; i < files.length(); i++) {
                     JSONObject emote = files.getJSONObject(i);
-                    if (!emote.getString("format").equals("WEBP")) {
+                    if (!emote.getString("format").equals(format)) {
                         continue;
                     }
                     String name = emote.getString("name");

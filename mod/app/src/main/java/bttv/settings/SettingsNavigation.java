@@ -84,8 +84,27 @@ public final class SettingsNavigation {
     }
 
     public static void install(final Activity activity, Menu menu) {
-        // Compatibility entry point for the existing settings-Activity patch.
-        // The native main Settings row is now the sole BTTV entry. Do not add
-        // or remove any native toolbar items here.
+        // BTTV 31.8.0 diagnostic fallback for the renamed settings navigation.
+        // This only adds an overflow item on a SettingsActivity that calls install().
+        if (activity == null || menu == null) {
+            return;
+        }
+        try {
+            final int itemId = 0x42747476;
+            if (menu.findItem(itemId) != null) {
+                return;
+            }
+            android.view.MenuItem item = menu.add(Menu.NONE, itemId, Menu.NONE, "BTTV Settings");
+            item.setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_NEVER);
+            item.setOnMenuItemClickListener(new android.view.MenuItem.OnMenuItemClickListener() {
+                @Override
+                public boolean onMenuItemClick(android.view.MenuItem clicked) {
+                    return open(activity);
+                }
+            });
+            android.util.Log.i("BTTV318Diag", "SettingsActivity overflow fallback installed");
+        } catch (Throwable failure) {
+            android.util.Log.e("BTTV318Diag", "SettingsActivity overflow fallback failed", failure);
+        }
     }
 }

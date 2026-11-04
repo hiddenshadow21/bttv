@@ -1,13 +1,17 @@
-diff --git a/smali_classes2/xdw.smali b/smali_classes2/xdw.smali
---- a/smali_classes2/xdw.smali
-+++ b/smali_classes2/xdw.smali
-@@ -216,6 +216,9 @@
-     .line 59
-     invoke-direct {v2, v1, v4}, Llev;-><init>(Lchi;I)V
-
-+    invoke-static {v2}, Lbttv/highlight/LiveBlacklist;->wrap(Lio/reactivex/functions/l;)Lio/reactivex/functions/l;
-+    move-result-object v2
+diff --git a/smali_classes2/xuw.smali b/smali_classes2/xuw.smali
+--- a/smali_classes2/xuw.smali
++++ b/smali_classes2/xuw.smali
+@@ -177,10 +177,13 @@
+     .line 55
+     const/4 v5, 0x7
+ 
+     .line 56
+     invoke-direct {v4, v1, v5}, Lj1w;-><init>(Ljava/lang/Object;I)V
 +
-     .line 60
-     .line 61
-     .line 62
++    invoke-static {v4}, Lbttv/highlight/LiveBlacklist;->wrap(Lio/reactivex/functions/l;)Lio/reactivex/functions/l;
++    move-result-object v4
+ 
+     .line 57
+     .line 58
+     .line 59
+     new-instance v1, Lio/reactivex/internal/operators/flowable/y0;

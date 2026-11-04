@@ -1,0 +1,48 @@
+diff --git a/smali_classes4/com/twitchrn/emoteinput/EmoteImageLoader.smali b/smali_classes4/com/twitchrn/emoteinput/EmoteImageLoader.smali
+index e1c37b6..fc98a62 100644
+--- a/smali_classes4/com/twitchrn/emoteinput/EmoteImageLoader.smali
++++ b/smali_classes4/com/twitchrn/emoteinput/EmoteImageLoader.smali
+@@ -282,6 +282,13 @@
+ .method private final fetch(Ljava/lang/String;)Landroid/graphics/Bitmap;
+     .locals 2
+ 
++    # BTTV: animation support in RN input (only external animated GIFs).
++    invoke-static {p1}, Lbttv/rn/RNAnimatedInput318;->fetch(Ljava/lang/String;)Landroid/graphics/Bitmap;
++    move-result-object v0
++    if-eqz v0, :bttv_318_stock_emote_image
++    return-object v0
++    :bttv_318_stock_emote_image
++
+     .line 1
+     new-instance p0, Ljava/net/URL;
+ 
+diff --git a/smali_classes4/com/twitchrn/emoteinput/EmoteImageSpan.smali b/smali_classes4/com/twitchrn/emoteinput/EmoteImageSpan.smali
+index ea96ea1..5b6efc1 100644
+--- a/smali_classes4/com/twitchrn/emoteinput/EmoteImageSpan.smali
++++ b/smali_classes4/com/twitchrn/emoteinput/EmoteImageSpan.smali
+@@ -472,6 +472,13 @@
+     .line 118
+     iget-object p0, p0, Lcom/twitchrn/emoteinput/EmoteImageSpan;->bitmapPaint:Landroid/graphics/Paint;
+ 
++    # Draw animated external input emotes instead of the static first frame.
++    invoke-static {p5, p1, p3, p0}, Lbttv/rn/RNAnimatedInput318;->draw(Landroid/graphics/Bitmap;Landroid/graphics/Canvas;Landroid/graphics/RectF;Landroid/graphics/Paint;)Z
++    move-result v0
++    if-eqz v0, :bttv_318_still_input_image
++    return-void
++    :bttv_318_still_input_image
++
+     .line 119
+     .line 120
+     invoke-virtual {p1, p5, p2, p3, p0}, Landroid/graphics/Canvas;->drawBitmap(Landroid/graphics/Bitmap;Landroid/graphics/Rect;Landroid/graphics/RectF;Landroid/graphics/Paint;)V
+diff --git a/smali_classes4/com/twitchrn/emoteinput/TwitchEmoteInputView.smali b/smali_classes4/com/twitchrn/emoteinput/TwitchEmoteInputView.smali
+index c75076e..dc7fad9 100644
+--- a/smali_classes4/com/twitchrn/emoteinput/TwitchEmoteInputView.smali
++++ b/smali_classes4/com/twitchrn/emoteinput/TwitchEmoteInputView.smali
+@@ -666,6 +666,7 @@
+ 
+     .line 134
+     .line 135
++    invoke-static {p0}, Lbttv/rn/RNAnimatedInput318;->onInputViewAttached(Landroid/view/View;)V
+     return-void
+ .end method
+ 

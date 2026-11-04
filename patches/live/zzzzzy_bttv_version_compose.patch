@@ -1,0 +1,17 @@
+diff --git a/smali_classes6/l7m.smali b/smali_classes6/l7m.smali
+--- a/smali_classes6/l7m.smali
++++ b/smali_classes6/l7m.smali
+@@ -5629,10 +5629,13 @@
+ 
+     .line 2431
+     .line 2432
+     .line 2433
+     move-result-object v4
++
++    # BTTV 31.8 RN: compose version footer branding (v0.44.0-beta)
++    const-string v4, "BTTV 0.44.0-beta (Twitch 31.8.0)"
+ 
+     .line 2434
+     invoke-virtual {v0}, Ls0j;->m0()Ljava/lang/Object;
+ 
+     .line 2435

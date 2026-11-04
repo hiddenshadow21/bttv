@@ -1,0 +1,17 @@
+{
+  "packageName": "tv.twitch.android.app",
+  "versionName": "31.8.0",
+  "versionCode": 3108006,
+  "minSdk": 28,
+  "supportedAbis": [
+    "arm64-v8a",
+    "armeabi-v7a"
+  ],
+  "files": {
+    "base.apk": "09FAD5136771353A7CD7748F894D406F03B6C129E3E637287F98BAF5C48666A4",
+    "split_config.arm64_v8a.apk": "7F9FD91514B45795157314BD2FE8A6AB667FD3685DFBAF2831DED2C07C1F86FA",
+    "split_config.armeabi_v7a.apk": "E0B5019487C88EBBE017C0291A7CD9AF177FA00C00494B5A9D8AF28347A00757",
+    "split_config.xxhdpi.apk": "F6C31FBD0878144E0E137F980B2B0B6F9A7B0BB9903FC60E307BAF727AE399D6",
+    "split_config.xxxhdpi.apk": "FCD629988624BED618A97BAF1A645772AD0CB7086F6F1F4899939A45D6D8AB14"
+  }
+}

@@ -1,13 +1,16 @@
-diff --git a/smali_classes2/v46.smali b/smali_classes2/v46.smali
---- a/smali_classes2/v46.smali
-+++ b/smali_classes2/v46.smali
-@@ -159,6 +159,9 @@
-     .line 38
-     .line 39
-     iget-boolean v6, p0, Lv46;->g:Z
+diff --git a/smali_classes2/k76.smali b/smali_classes2/k76.smali
+--- a/smali_classes2/k76.smali
++++ b/smali_classes2/k76.smali
+@@ -126,10 +126,12 @@
+     iget-object v5, p0, Lk76;->f:Lnb6;
+ 
+     .line 26
+     .line 27
+     iget-boolean v6, p0, Lk76;->g:Z
 +    invoke-static {v6}, Lbttv/ChatTimestamps;->shouldShow(Z)Z
 +    move-result v6
-+
-
-     .line 40
-     .line 41
+ 
+     .line 28
+     .line 29
+     iget-object v7, p0, Lk76;->h:Ltv/twitch/android/core/mvp/viewdelegate/EventDispatcher;
+ 

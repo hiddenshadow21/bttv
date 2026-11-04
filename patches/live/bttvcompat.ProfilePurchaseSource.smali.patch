@@ -5,20 +5,20 @@
 +.super Ljava/lang/Object;
 +.implements Lbttv/commerce/BrowserPurchaseUi$Source;
 +
-+.field private final owner:Lnar;
++.field private final owner:Lplr;
 +
-+.method public constructor <init>(Lnar;)V
++.method public constructor <init>(Lplr;)V
 +    .locals 0
 +    invoke-direct {p0}, Ljava/lang/Object;-><init>()V
-+    iput-object p1, p0, Lbttvcompat/ProfilePurchaseSource;->owner:Lnar;
++    iput-object p1, p0, Lbttvcompat/ProfilePurchaseSource;->owner:Lplr;
 +    return-void
 +.end method
 +
 +.method public login()Ljava/lang/String;
 +    .locals 2
 +    :try_start
-+    iget-object v0, p0, Lbttvcompat/ProfilePurchaseSource;->owner:Lnar;
-+    iget-object v0, v0, Lnar;->S:Ltv/twitch/android/models/channel/ChannelModel;
++    iget-object v0, p0, Lbttvcompat/ProfilePurchaseSource;->owner:Lplr;
++    iget-object v0, v0, Lplr;->S:Ltv/twitch/android/models/channel/ChannelModel;
 +    if-eqz v0, :invalid
 +    invoke-virtual {v0}, Ltv/twitch/android/models/channel/ChannelModel;->isMonetized()Z
 +    move-result v1

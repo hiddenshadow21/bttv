@@ -1,14 +1,16 @@
-diff --git a/smali_classes5/wjf.smali b/smali_classes5/wjf.smali
---- a/smali_classes5/wjf.smali
-+++ b/smali_classes5/wjf.smali
-@@ -2182,3 +2182,6 @@
+diff --git a/smali_classes5/pqf.smali b/smali_classes5/pqf.smali
+--- a/smali_classes5/pqf.smali
++++ b/smali_classes5/pqf.smali
+@@ -2182,14 +2182,21 @@
+     sget v5, Lo01;->c:I
+ 
      .line 841
      .line 842
 +    invoke-static {v7}, Lbttvcompat/NativePickerBridge;->pickerUrl(Ljava/lang/Object;)Ljava/lang/String;
 +    move-result-object v14
 +    if-nez v14, :bttv_picker_image_ready
-     invoke-virtual {v10, v2, v4, v11}, Lqz0;->c(Landroid/content/Context;Ljava/lang/String;Ljava/lang/Float;)Ljava/lang/String;
-@@ -2186,6 +2189,10 @@
+     invoke-virtual {v11, v2, v4, v12}, Lo01;->c(Landroid/content/Context;Ljava/lang/String;Ljava/lang/Float;)Ljava/lang/String;
+ 
      .line 843
      .line 844
      .line 845
@@ -17,14 +19,17 @@ diff --git a/smali_classes5/wjf.smali b/smali_classes5/wjf.smali
 +    invoke-static {v13, v7, v14}, Lbttvcompat/NativePickerBridge;->pickerImage(Ltv/twitch/android/shared/ui/elements/image/NetworkImageWidget;Ljava/lang/Object;Ljava/lang/String;)Z
 +    move-result v2
 +    if-nez v2, :bttv_picker_image_done
--
-+
+ 
      .line 846
-@@ -2209,5 +2216,6 @@
+     const/16 v19, 0x0
+ 
+@@ -2210,8 +2217,9 @@
+ 
      .line 854
      .line 855
-     invoke-static/range {v13 .. v20}, Ltv/twitch/android/shared/ui/elements/image/NetworkImageWidget;->e(Ltv/twitch/android/shared/ui/elements/image/NetworkImageWidget;Ljava/lang/String;ZJLi1x;Lo1x;I)V
+     invoke-static/range {v13 .. v20}, Ltv/twitch/android/shared/ui/elements/image/NetworkImageWidget;->e(Ltv/twitch/android/shared/ui/elements/image/NetworkImageWidget;Ljava/lang/String;ZJLljx;Lrjx;I)V
 +    :bttv_picker_image_done
--
-+
+ 
      .line 856
+     .line 857
+     .line 858

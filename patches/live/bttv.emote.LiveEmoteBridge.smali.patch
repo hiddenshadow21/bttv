@@ -25,11 +25,11 @@ new file mode 100644
 +    if-eqz v2, :done
 +    invoke-interface {v1}, Ljava/util/Iterator;->next()Ljava/lang/Object;
 +    move-result-object v2
-+    instance-of v3, v2, Limp;
++    instance-of v3, v2, Lywp;
 +    if-eqz v3, :keep_token
 +    move-object v3, v2
-+    check-cast v3, Limp;
-+    iget-object v3, v3, Limp;->a:Ljava/lang/String;
++    check-cast v3, Lywp;
++    iget-object v3, v3, Lywp;->a:Ljava/lang/String;
 +    invoke-static {v3, p1}, Lbttv/emote/LiveEmotes;->split(Ljava/lang/String;Ljava/lang/String;)Ljava/util/List;
 +    move-result-object v3
 +    if-eqz v3, :keep_token
@@ -46,13 +46,13 @@ new file mode 100644
 +    iget-object v5, v4, Lbttv/emote/LiveEmotes$Part;->text:Ljava/lang/String;
 +    iget-object v6, v4, Lbttv/emote/LiveEmotes$Part;->marker:Ljava/lang/String;
 +    if-eqz v6, :text_part
-+    new-instance v7, Lfmp;
-+    invoke-direct {v7, v6, v5}, Lfmp;-><init>(Ljava/lang/String;Ljava/lang/String;)V
++    new-instance v7, Lvwp;
++    invoke-direct {v7, v6, v5}, Lvwp;-><init>(Ljava/lang/String;Ljava/lang/String;)V
 +    goto :add_part
 +
 +    :text_part
-+    new-instance v7, Limp;
-+    invoke-direct {v7, v5}, Limp;-><init>(Ljava/lang/String;)V
++    new-instance v7, Lywp;
++    invoke-direct {v7, v5}, Lywp;-><init>(Ljava/lang/String;)V
 +
 +    :add_part
 +    invoke-virtual {v0, v7}, Ljava/util/ArrayList;->add(Ljava/lang/Object;)Z

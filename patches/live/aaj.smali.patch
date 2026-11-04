@@ -1,8 +1,10 @@
-diff --git a/smali_classes2/aaj.smali b/smali_classes2/aaj.smali
---- a/smali_classes2/aaj.smali
-+++ b/smali_classes2/aaj.smali
-@@ -992,3 +992,5 @@
-+    iput-object v5, v7, Lq9j;->e:Landroid/graphics/drawable/Drawable$Callback;
+--- a/smali_classes2/xjj.smali
++++ b/smali_classes2/xjj.smali
+@@ -990,6 +990,8 @@
+     .line 122
+     invoke-direct {v5, p2, v6}, Lg0f;-><init>(Ljava/lang/Object;I)V
+ 
++    iput-object v5, v7, Lnjj;->e:Landroid/graphics/drawable/Drawable$Callback;
 +
      .line 123
      .line 124

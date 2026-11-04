@@ -1,9 +1,12 @@
-diff --git a/smali_classes2/qo5.smali b/smali_classes2/qo5.smali
---- a/smali_classes2/qo5.smali
-+++ b/smali_classes2/qo5.smali
-@@ -2713,5 +2713,17 @@
-     iput-object p2, p0, Lqo5;->w:Ltv/twitch/android/models/streams/StreamType;
-
+diff --git a/smali_classes2/ir5.smali b/smali_classes2/ir5.smali
+--- a/smali_classes2/ir5.smali
++++ b/smali_classes2/ir5.smali
+@@ -2761,10 +2761,22 @@
+ 
+     .line 27
+     .line 28
+     iput-object p2, p0, Lir5;->w:Ltv/twitch/android/models/streams/StreamType;
+ 
 +    :try_start_bttv_channel
 +    invoke-virtual {v1}, Ltv/twitch/android/models/Tuid;->toString()Ljava/lang/String;
 +    move-result-object v0
@@ -18,4 +21,6 @@ diff --git a/smali_classes2/qo5.smali b/smali_classes2/qo5.smali
 +
      .line 29
      .line 30
-     new-instance v0, Lnm5;
+     new-instance v0, Lfp5;
+ 
+     .line 31

@@ -1,0 +1,74 @@
+diff --git a/smali_classes7/bttvcompat/NativeSettingsBridge.smali b/smali_classes7/bttvcompat/NativeSettingsBridge.smali
+--- a/smali_classes7/bttvcompat/NativeSettingsBridge.smali
++++ b/smali_classes7/bttvcompat/NativeSettingsBridge.smali
+@@ -4,6 +4,9 @@
+ .method public static appendLegacy(Landroid/app/Activity;Ljava/util/List;)V
+     .locals 6
+     :try_start_append
++    const-string v4, "BTTV318Diag"
++    const-string v5, "appendLegacy entered"
++    invoke-static {v4, v5}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+     invoke-static {p0}, Lbttv/settings/SettingsNavigation;->findActivity(Landroid/content/Context;)Landroid/app/Activity;
+     move-result-object v0
+     if-eqz v0, :append_done
+@@ -19,11 +22,17 @@
+     invoke-direct {v0, v1, v3, v2, v4}, Len20;-><init>(Ljava/lang/String;Ljava/lang/String;Lxoz;I)V
+     invoke-static {v0}, Lbttv/settings/SettingsNavigation;->markNativeRow(Ljava/lang/Object;)V
+     invoke-interface {p1, v0}, Ljava/util/List;->add(Ljava/lang/Object;)Z
++    const-string v4, "BTTV318Diag"
++    const-string v5, "native BTTV row appended"
++    invoke-static {v4, v5}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+     :try_end_append
+     goto :append_done
+     .catch Ljava/lang/Throwable; {:try_start_append .. :try_end_append} :append_failed
+     :append_failed
+     move-exception v0
++    const-string v1, "BTTV318Diag"
++    const-string v2, "native BTTV row append failed"
++    invoke-static {v1, v2, v0}, Landroid/util/Log;->e(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)I
+     :append_done
+     return-void
+ .end method
+@@ -46,6 +55,9 @@
+     .catch Ljava/lang/Throwable; {:try_start_bttv318 .. :try_end_bttv318} :error
+     :error
+     move-exception v0
++    const-string p0, "BTTV318Diag"
++    const-string p1, "BTTV navigation failed"
++    invoke-static {p0, p1, v0}, Landroid/util/Log;->e(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)I
+     :consumed
+     const/4 v0, 0x1
+     return v0
+diff --git a/smali_classes7/bttv/emote/LiveEmoteBridge.smali b/smali_classes7/bttv/emote/LiveEmoteBridge.smali
+--- a/smali_classes7/bttv/emote/LiveEmoteBridge.smali
++++ b/smali_classes7/bttv/emote/LiveEmoteBridge.smali
+@@ -1,10 +1,20 @@
+ .class public final Lbttv/emote/LiveEmoteBridge;
+ .super Ljava/lang/Object;
++
++.field private static bttv318DiagLogged:Z
+ 
+ .method public static rewrite(Ljava/util/ArrayList;Ljava/lang/String;)Ljava/util/ArrayList;
+     .locals 8
+ 
+     :try_start_channel
++    sget-boolean v0, Lbttv/emote/LiveEmoteBridge;->bttv318DiagLogged:Z
++    if-nez v0, :bttv318_diag_skip
++    const/4 v0, 0x1
++    sput-boolean v0, Lbttv/emote/LiveEmoteBridge;->bttv318DiagLogged:Z
++    const-string v0, "BTTV318Diag"
++    const-string v1, "LiveEmoteBridge.rewrite entered"
++    invoke-static {v0, v1}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
++    :bttv318_diag_skip
+     invoke-static {p1}, Lbttv/emote/LiveEmoteChannels;->ensureChannel(Ljava/lang/String;)V
+ 
+     new-instance v0, Ljava/util/ArrayList;
+@@ -64,5 +74,8 @@
+ 
+     :channel_failed
+     move-exception v0
++    const-string v1, "BTTV318Diag"
++    const-string v2, "LiveEmoteBridge.rewrite failed"
++    invoke-static {v1, v2, v0}, Landroid/util/Log;->e(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)I
+     return-object p0
+ .end method

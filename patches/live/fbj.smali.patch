@@ -1,9 +1,11 @@
-diff --git a/smali/fbj.smali b/smali/fbj.smali
---- a/smali/fbj.smali
-+++ b/smali/fbj.smali
-@@ -1157,5 +1157,16 @@
-     iget-object v0, v0, Lrsf;->c:Lvqf;
-
+diff --git a/smali/sro.smali b/smali/sro.smali
+--- a/smali/sro.smali
++++ b/smali/sro.smali
+@@ -4499,10 +4499,21 @@
+     .line 234
+     .line 235
+     iget-object v0, v0, Ljzf;->c:Lpxf;
+ 
      .line 236
 +    if-nez v1, :bttv_usage_done
 +    :try_start_bttv_usage
@@ -17,4 +19,7 @@ diff --git a/smali/fbj.smali b/smali/fbj.smali
 +    :bttv_usage_done
 +
      .line 237
-     invoke-virtual {v0, p1}, Lvqf;->e(Ljava/lang/String;)V
+     invoke-virtual {v0, p1}, Lpxf;->e(Ljava/lang/String;)V
+ 
+     .line 238
+     .line 239

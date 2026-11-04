@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 import zipfile
 
-PIN = Path(__file__).with_name("twitch-31.2.0-inputs.json")
+PIN = Path(__file__).with_name("twitch-31.8.0-inputs.json")
 
 
 def inspect(source, pin=PIN, armv7_bundle=None):

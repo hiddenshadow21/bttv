@@ -36,6 +36,10 @@ final class LiveEmoteGlobals {
             public void run() {
                 try {
                     Emotes.setGlobal(Emote.fromJSONArray(fetch(url), source), source);
+                    Log.i("BTTV318Diag", "Global catalog fetched " + source + " n="
+                            + (source == Emotes.Source.BTTV ? Emotes.globalEmotesBTTV.size()
+                            : source == Emotes.Source.FFZ ? Emotes.globalEmotesFFZ.size()
+                            : Emotes.globalEmotes7TV.size()));
                 } catch (Throwable failure) {
                     // A provider or dependency failure must never escape into Twitch chat.
                     Log.w(TAG, "Global emote catalog unavailable: " + source

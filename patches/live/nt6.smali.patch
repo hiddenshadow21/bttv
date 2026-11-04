@@ -1,21 +1,23 @@
-diff --git a/smali_classes2/nt6.smali b/smali_classes2/nt6.smali
---- a/smali_classes2/nt6.smali
-+++ b/smali_classes2/nt6.smali
-@@ -4351,6 +4351,33 @@
+diff --git a/smali_classes2/qw6.smali b/smali_classes2/qw6.smali
+--- a/smali_classes2/qw6.smali
++++ b/smali_classes2/qw6.smali
+@@ -4383,8 +4383,35 @@
+     .line 986
+     .line 987
      invoke-virtual {v0, v2, v10, v3}, Ltv/twitch/android/core/mvp/presenter/BasePresenter;->W0(Lio/reactivex/f;Ltv/twitch/android/core/mvp/rxutil/DisposeOn;Lkotlin/jvm/functions/Function1;)V
-
+ 
 +    :try_start_bttv_autocomplete_seed
-+    iget-object v2, v1, Lct6;->y:Le66;
++    iget-object v2, v1, Ldw6;->y:Lt86;
 +    if-eqz v2, :bttv_autocomplete_seed_done
-+    iget-object v2, v2, Le66;->r:Lmlp;
++    iget-object v2, v2, Lt86;->r:Lcwp;
 +    if-eqz v2, :bttv_autocomplete_seed_done
-+    iget-object v2, v2, Lmlp;->d:Lb00;
++    iget-object v2, v2, Lcwp;->d:Lh00;
 +    if-eqz v2, :bttv_autocomplete_seed_done
-+    iget-object v2, v2, Lb00;->f:Ljava/lang/Object;
++    iget-object v2, v2, Lh00;->f:Ljava/lang/Object;
 +    check-cast v2, Landroid/widget/EditText;
 +    if-eqz v2, :bttv_autocomplete_seed_done
 +    const/4 v4, 0x0
-+    iget-object v3, v0, Lnt6;->P1:Ltv/twitch/android/models/channel/ChannelInfo;
++    iget-object v3, v0, Lqw6;->P1:Ltv/twitch/android/models/channel/ChannelInfo;
 +    if-eqz v3, :bttv_autocomplete_seed_channel
 +    invoke-interface {v3}, Ltv/twitch/android/models/channel/ChannelInfo;->getTuid()Ltv/twitch/android/models/Tuid;
 +    move-result-object v3
@@ -31,23 +33,25 @@ diff --git a/smali_classes2/nt6.smali b/smali_classes2/nt6.smali
 +    :bttv_autocomplete_seed_failed
 +    move-exception v2
 +    :bttv_autocomplete_seed_done
-     .line 983
-     .line 984
-     .line 985
+     .line 988
+     .line 989
+     .line 990
      return-void
-@@ -4638,4 +4665,24 @@
+@@ -4670,8 +4697,28 @@
+     .line 144
+     .line 145
      move-result-object p1
-
+ 
 +    :try_start_bttv_autocomplete_channel
-+    iget-object v0, p0, Lnt6;->N1:Lct6;
++    iget-object v0, p0, Lqw6;->N1:Ldw6;
 +    if-eqz v0, :bttv_autocomplete_channel_done
-+    iget-object v0, v0, Lct6;->y:Le66;
++    iget-object v0, v0, Ldw6;->y:Lt86;
 +    if-eqz v0, :bttv_autocomplete_channel_done
-+    iget-object v0, v0, Le66;->r:Lmlp;
++    iget-object v0, v0, Lt86;->r:Lcwp;
 +    if-eqz v0, :bttv_autocomplete_channel_done
-+    iget-object v0, v0, Lmlp;->d:Lb00;
++    iget-object v0, v0, Lcwp;->d:Lh00;
 +    if-eqz v0, :bttv_autocomplete_channel_done
-+    iget-object v0, v0, Lb00;->f:Ljava/lang/Object;
++    iget-object v0, v0, Lh00;->f:Ljava/lang/Object;
 +    check-cast v0, Landroid/widget/EditText;
 +    if-eqz v0, :bttv_autocomplete_channel_done
 +    invoke-static {v0, p1}, Lbttv/emote/LiveEmoteAutocomplete;->setChannel(Landroid/widget/EditText;Ljava/lang/String;)V
@@ -59,4 +63,6 @@ diff --git a/smali_classes2/nt6.smali b/smali_classes2/nt6.smali
 +    move-exception v0
 +    :bttv_autocomplete_channel_done
      .line 146
-     iget-object p3, p0, Lnt6;->m:Lws40;
+     iget-object p3, p0, Lqw6;->m:Lvi50;
+ 
+     .line 147

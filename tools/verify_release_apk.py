@@ -53,7 +53,7 @@ def verify(apk, source, sdk=None, expected_signer=None, allow_test=False):
     if 'com.android.vending.splits.required' in manifest or 'com.android.vending.splits"' in manifest:
         raise ValueError("Split metadata remains")
     authorities = re.findall(r'android:authorities[^\n]*="([^"\n]+)"', manifest)
-    if len(authorities) != 9 or len(set(authorities)) != 9:
+    if len(authorities) != 10 or len(set(authorities)) != 10:
         raise ValueError("Expected nine unique provider authorities")
     signature = run(tools / "apksigner", "verify", "--verbose", "--print-certs", apk)
     if not re.search(r'Verified using v3 scheme[^\n]*true', signature):

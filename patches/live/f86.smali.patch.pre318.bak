@@ -1,0 +1,58 @@
+diff --git a/smali_classes2/f86.smali b/smali_classes2/f86.smali
+--- a/smali_classes2/f86.smali
++++ b/smali_classes2/f86.smali
+@@ -158,6 +158,16 @@
+     .line 60
+     .line 61
+     :goto_5
++    iget-object v0, v10, Ly86;->b:Ljava/lang/String;
++
++    iget-object v1, v10, Ly86;->c:Ljava/lang/String;
++
++    move-object/from16 v2, p5
++
++    invoke-static {v2, v8, v0, v1, v5}, Lbttv/highlight/LiveHighlightBridge;->replace(Ljava/util/List;Lfmp;Ljava/lang/String;Ljava/lang/String;Lenj;)Lenj;
++
++    move-result-object v5
++
+     invoke-virtual/range {p0 .. p0}, Ljava/lang/Object;->getClass()Ljava/lang/Class;
+
+     .line 62
+@@ -734,6 +744,12 @@
+     .line 300
+     .line 301
+     invoke-direct {v0, v6}, Landroid/text/SpannedString;-><init>(Ljava/lang/CharSequence;)V
+
++    iget-object v14, v10, Ly86;->a:Ljava/lang/String;
++
++    invoke-static {v1, v0, v14}, Lbttvcompat/LiveBadgeBridge;->augment(Landroid/content/Context;Landroid/text/SpannedString;Ljava/lang/String;)Landroid/text/SpannedString;
++
++    move-result-object v0
++
+     .line 302
+     .line 303
+@@ -3352,8 +3368,13 @@
+     .line 30
+     :goto_1
+     iget-object v2, p0, Lf86;->a:Lqz0;
+
++    iget-object v4, p4, Lfmp;->b:Ljava/lang/String;
++    invoke-static {v1, v4}, Lbttv/emote/LiveEmotes;->urlForMarker(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
++    move-result-object v4
++    if-nez v4, :bttv31_url_ready
++
+     .line 31
+     .line 32
+     invoke-static {v2, p1, v1, p5}, Lqz0;->b(Lqz0;Landroid/content/Context;Ljava/lang/String;F)Lpz0;
+
+@@ -3363,8 +3384,10 @@
+     move-result-object p5
+
+     .line 36
+     iget-object v4, p5, Lpz0;->a:Ljava/lang/String;
+
++    :bttv31_url_ready
++
+     .line 37
+     .line 38
+     new-instance v2, Lr360;

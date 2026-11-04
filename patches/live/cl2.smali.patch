@@ -1,17 +1,142 @@
-diff --git a/smali_classes5/cl2.smali b/smali_classes5/cl2.smali
---- a/smali_classes5/cl2.smali
-+++ b/smali_classes5/cl2.smali
-@@ -41,7 +41,13 @@
- .method public final R(La120;)V
-     .locals 1
-
-+    invoke-static {p0, p1}, Lbttvcompat/NativeSettingsBridge;->handleLegacy(Ljava/lang/Object;Ljava/lang/Object;)Z
-+    move-result v0
-+    if-eqz v0, :bttv_native_stock
-+    return-void
-+    :bttv_native_stock
+diff --git a/smali_classes5/xoz.smali b/smali_classes5/xoz.smali
+index 6952d62..00ebb66 100644
+--- a/smali_classes5/xoz.smali
++++ b/smali_classes5/xoz.smali
+@@ -6,6 +6,8 @@
+ # static fields
+ .field public static final enum Account:Lxoz;
+ 
++.field public static final enum BTTV:Lxoz;
 +
-     .line 1
-     iget v0, p0, Lcl2;->b:I
-
-     .line 2
+ .field public static final enum AddEmail:Lxoz;
+ 
+ .field public static final enum AdvancedCandlelightSettings:Lxoz;
+@@ -1677,6 +1679,21 @@
+     .line 786
+     sput-object v0, Lxoz;->b:[Lxoz;
+ 
++    # Append a unique BTTV navigation enum and preserve EnumEntries integrity.
++    array-length v2, v0
++    new-instance v4, Lxoz;
++    const-string v3, "BTTV"
++    const/4 v5, 0x0
++    invoke-direct {v4, v3, v2, v5}, Lxoz;-><init>(Ljava/lang/String;IZ)V
++    sput-object v4, Lxoz;->BTTV:Lxoz;
++    add-int/lit8 v2, v2, 0x1
++    invoke-static {v0, v2}, Ljava/util/Arrays;->copyOf([Ljava/lang/Object;I)[Ljava/lang/Object;
++    move-result-object v0
++    check-cast v0, [Lxoz;
++    add-int/lit8 v2, v2, -0x1
++    aput-object v4, v0, v2
++    sput-object v0, Lxoz;->b:[Lxoz;
++
+     .line 787
+     .line 788
+     new-instance v1, Lj7g;
+diff --git a/smali_classes7/bttvcompat/NativeSettingsBridge.smali b/smali_classes7/bttvcompat/NativeSettingsBridge.smali
+index e6efeee..7f7388c 100644
+--- a/smali_classes7/bttvcompat/NativeSettingsBridge.smali
++++ b/smali_classes7/bttvcompat/NativeSettingsBridge.smali
+@@ -12,12 +12,11 @@
+     if-nez v0, :append_done
+     invoke-static {p0}, Lbttv/settings/SettingsNavigation;->nativeEntryTitle(Landroid/content/Context;)Ljava/lang/String;
+     move-result-object v1
+-    new-instance v0, La120;
+-    const/4 v2, 0x0
++    new-instance v0, Len20;
++    sget-object v2, Lxoz;->BTTV:Lxoz;
+     const/4 v3, 0x0
+-    const/4 v4, 0x0
+-    const/4 v5, 0x1
+-    invoke-direct/range {v0 .. v5}, La120;-><init>(Ljava/lang/String;Ljava/lang/CharSequence;Ljava/lang/String;Lb6z;Z)V
++    const/4 v4, 0x2
++    invoke-direct {v0, v1, v3, v2, v4}, Len20;-><init>(Ljava/lang/String;Ljava/lang/String;Lxoz;I)V
+     invoke-static {v0}, Lbttv/settings/SettingsNavigation;->markNativeRow(Ljava/lang/Object;)V
+     invoke-interface {p1, v0}, Ljava/util/List;->add(Ljava/lang/Object;)Z
+     :try_end_append
+@@ -29,65 +28,28 @@
+     return-void
+ .end method
+ 
+-.method public static handleLegacy(Ljava/lang/Object;Ljava/lang/Object;)Z
++
++
++# New 31.8.0 navigation callback receives Xoz, not a legacy A120 row.
++.method public static handleCompose(Lxoz;Ljava/lang/Object;)Z
+     .locals 2
+-    :try_start_click
+-    instance-of v0, p0, Lcl2;
+-    if-eqz v0, :stock_click
+-    instance-of v0, p1, La120;
+-    if-eqz v0, :stock_click
+-    check-cast p0, Lcl2;
+-    iget v0, p0, Lcl2;->b:I
+-    if-nez v0, :stock_click
+-    invoke-static {p1}, Lbttv/settings/SettingsNavigation;->isNativeRow(Ljava/lang/Object;)Z
+-    move-result v0
+-    if-eqz v0, :stock_click
+-    iget-object v1, p0, Lcl2;->c:Ljava/lang/Object;
+-    instance-of v0, v1, Lffo;
+-    if-eqz v0, :stock_click
+-    check-cast v1, Ldl2;
+-    iget-object v1, v1, Ldl2;->f:Landroidx/fragment/app/n;
+-    invoke-static {v1}, Lbttv/settings/SettingsNavigation;->open(Landroid/content/Context;)Z
+-    move-result v0
+-    :try_end_click
+-    return v0
+-    .catch Ljava/lang/Throwable; {:try_start_click .. :try_end_click} :click_failed
+-    :click_failed
++    sget-object v0, Lxoz;->BTTV:Lxoz;
++    if-ne p0, v0, :stock
++    :try_start_bttv318
++    check-cast p1, Lqnc;
++    iget-object v0, p1, Lqnc;->b:Ljava/lang/Object;
++    check-cast v0, Lxpo;
++    iget-object v0, v0, Lfn2;->f:Landroidx/fragment/app/r;
++    invoke-static {v0}, Lbttv/settings/SettingsNavigation;->open(Landroid/content/Context;)Z
++    :try_end_bttv318
++    goto :consumed
++    .catch Ljava/lang/Throwable; {:try_start_bttv318 .. :try_end_bttv318} :error
++    :error
+     move-exception v0
+-    :stock_click
++    :consumed
++    const/4 v0, 0x1
++    return v0
++    :stock
+     const/4 v0, 0x0
+     return v0
+ .end method
+-
+-.method public static drawMain(Lqw9;)V
+-    .locals 8
+-    :try_start_prepare
+-    check-cast p0, Lfsi;
+-    sget-object v0, Lvp0;->b:Ld6f;
+-    invoke-virtual {p0, v0}, Lfsi;->m(Landroidx/compose/runtime/g;)Ljava/lang/Object;
+-    move-result-object v0
+-    check-cast v0, Landroid/content/Context;
+-    invoke-static {v0}, Lbttv/settings/SettingsNavigation;->findActivity(Landroid/content/Context;)Landroid/app/Activity;
+-    move-result-object v0
+-    if-eqz v0, :draw_done
+-    new-instance v2, Lbttvcompat/NativeSettingsClick;
+-    invoke-direct {v2, v0}, Lbttvcompat/NativeSettingsClick;-><init>(Landroid/app/Activity;)V
+-    invoke-static {v0}, Lbttv/settings/SettingsNavigation;->nativeEntryTitle(Landroid/content/Context;)Ljava/lang/String;
+-    move-result-object v0
+-    const/4 v1, 0x0
+-    const v3, 0x7f080646
+-    const/4 v4, 0x0
+-    move-object v5, p0
+-    const/4 v6, 0x0
+-    const/16 v7, 0x12
+-    :try_end_prepare
+-    goto :draw_ready
+-    .catch Ljava/lang/Throwable; {:try_start_prepare .. :try_end_prepare} :prepare_failed
+-    :prepare_failed
+-    move-exception v0
+-    :draw_done
+-    return-void
+-    :draw_ready
+-    invoke-static/range {v0 .. v7}, Lr2k;->w(Ljava/lang/String;Ljava/lang/String;Lngi;ILwqj;Lqw9;II)V
+-    return-void
+-.end method

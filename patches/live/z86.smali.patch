@@ -1,24 +1,28 @@
-diff --git a/smali_classes2/z86.smali b/smali_classes2/z86.smali
---- a/smali_classes2/z86.smali
-+++ b/smali_classes2/z86.smali
-@@ -1180,7 +1180,7 @@
-
+diff --git a/smali_classes2/pb6.smali b/smali_classes2/pb6.smali
+--- a/smali_classes2/pb6.smali
++++ b/smali_classes2/pb6.smali
+@@ -1179,9 +1179,9 @@
+ 
+ 
  # virtual methods
- .method public final a(Ljava/lang/String;Lzun;Ljava/lang/String;Lf56;)Ll26;
--    .locals 24
-+    .locals 27
-
+ .method public final a(Ltv/twitch/android/models/Tuid;Lx5o;Ljava/lang/String;Lu76;)La56;
+-    .locals 26
++    .locals 28
+ 
      .line 1
      move-object/from16 v0, p0
-@@ -2550,6 +2550,11 @@
-     .line 648
-     :cond_22
-     const/4 v6, 0x0
-
-+    move-object/from16 v24, v4
-+    move-object/from16 v25, p1
-+    invoke-static/range {v24 .. v25}, Lbttv/emote/LiveEmoteBridge;->rewrite(Ljava/util/ArrayList;Ljava/lang/String;)Ljava/util/ArrayList;
-+    move-result-object v4
-+
-     .line 649
-     invoke-static {v7, v4}, Lz86;->d(Lv86;Ljava/util/ArrayList;)Lkotlin/Pair;
+ 
+@@ -2586,8 +2586,13 @@
+     return-object v16
+ 
+     .line 667
+     :cond_21
++    move-object/from16 v26, v5
++    invoke-virtual/range {p1 .. p1}, Ltv/twitch/android/models/Tuid;->toString()Ljava/lang/String;
++    move-result-object v27
++    invoke-static/range {v26 .. v27}, Lbttv/emote/LiveEmoteBridge;->rewrite(Ljava/util/ArrayList;Ljava/lang/String;)Ljava/util/ArrayList;
++    move-result-object v5
+     invoke-static {v8, v5}, Lpb6;->d(Llb6;Ljava/util/ArrayList;)Lkotlin/Pair;
+ 
+     .line 668
+     .line 669
