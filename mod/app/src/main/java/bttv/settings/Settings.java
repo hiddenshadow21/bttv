@@ -8,8 +8,12 @@ import java.util.Map;
 
 import bttv.Res;
 import bttv.settings.UserPreferences.Entry;
-import tv.twitch.android.models.settings.SettingsDestination;
 
+/**
+ * Preference definitions independent of Twitch's settings navigation enums.
+ * Twitch 31.8.0 no longer ships SettingsDestination, so do not reference
+ * that type during static initialization of preferences used by live chat.
+ */
 public enum Settings {
     BTTVEmotesEnabled(
             new Entry.BoolEntry(
@@ -64,6 +68,18 @@ public enum Settings {
                     null
             )
     ),
+    // 31.8.0: native Twitch live-chat timestamps, using the same BTTV
+    // preference file/key as the settings overlay.  No extra resource entry
+    // is required: SettingsOverlay318 labels this option directly.
+    AlwaysShowChatTimestamps(
+            new Entry.BoolEntry(
+                    "bttv_always_show_chat_timestamps",
+                    new Entry.BoolValue(true),
+                    null,
+                    null,
+                    null
+            )
+    ),
     ShowDeletedMessagesEnabled(
             new Entry.BoolEntry(
                     "enable_show_deleted_messages",
@@ -105,7 +121,7 @@ public enum Settings {
                 Res.strings.bttv_settings_open_highlights_dia_primary,
                 Res.strings.bttv_settings_open_highlights_dia_secondary,
                 null,
-                SettingsDestination.BTTV_HIGHLIGHTS
+                "BTTV_HIGHLIGHTS"
             )
     ),
     HighlightedKeyWords(
@@ -122,7 +138,7 @@ public enum Settings {
                     Res.strings.bttv_settings_open_blacklist_dia_primary,
                     Res.strings.bttv_settings_open_blacklist_dia_secondary,
                     null,
-                    SettingsDestination.BTTV_BLACKLIST
+                    "BTTV_BLACKLIST"
             )
     ),
     BlacklistedKeyWords(
@@ -148,7 +164,7 @@ public enum Settings {
                     Res.strings.bttv_settings_invoke_update_check,
                     null,
                     null,
-                    SettingsDestination.BTTV_INVOKE_UPDATE_CHECK
+                    "BTTV_INVOKE_UPDATE_CHECK"
             )
     ),
     DevToolsEnabled(
@@ -165,7 +181,7 @@ public enum Settings {
                     Res.strings.bttv_settings_open_credits_button_title,
                     null,
                     null,
-                    SettingsDestination.BTTV_CREDITS
+                    "BTTV_CREDITS"
             )
     );
 

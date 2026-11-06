@@ -18,9 +18,9 @@ import java.util.zip.ZipOutputStream;
  * Gives the app another package name (and optionally another name), so it can be installed next to the official app.
  * Works on the compiled files, as the resources are not decoded for this Twitch version.
  *
- *   java RenamePackage.java manifest AndroidManifest.xml old.package new.package [label]
+ *   java RenamePackage.java manifest AndroidManifest.xml old.package new.package label versionName versionCode
  *   java RenamePackage.java arsc resources.arsc old.package new.package
- *   java RenamePackage.java apk in.apk out.apk old.package new.package
+ *   java RenamePackage.java apk in.apk out.apk old.package new.package versionName versionCode
  *   java RenamePackage.java icon ic_launcher.xml 7f060637
  */
 public class RenamePackage {
@@ -30,12 +30,16 @@ public class RenamePackage {
     private static final int FLAG_UTF8 = 0x100;
     private static final int TYPE_REFERENCE = 0x01;
     private static final int TYPE_STRING = 0x03;
+    private static final int TYPE_INT_DEC = 0x10;
 
     public static void main(String[] args) throws Exception {
         switch (args[0]) {
             case "manifest": {
                 byte[] in = Files.readAllBytes(Paths.get(args[1]));
-                Files.write(Paths.get(args[1]), manifest(in, args[2], args[3], args.length > 4 ? args[4] : null));
+                if (args.length != 7) {
+                    throw new IllegalArgumentException("manifest requires: file oldPackage newPackage label versionName versionCode");
+                }
+                Files.write(Paths.get(args[1]), manifest(in, args[2], args[3], args[4], args[5], args[6]));
                 break;
             }
             case "arsc": {
@@ -44,7 +48,10 @@ public class RenamePackage {
                 break;
             }
             case "apk":
-                apk(args[1], args[2], args[3], args[4]);
+                if (args.length != 7) {
+                    throw new IllegalArgumentException("apk requires: in.apk out.apk oldPackage newPackage versionName versionCode");
+                }
+                apk(args[1], args[2], args[3], args[4], args[5], args[6]);
                 break;
             case "icon": {
                 byte[] in = Files.readAllBytes(Paths.get(args[1]));
@@ -71,7 +78,12 @@ public class RenamePackage {
         return value;
     }
 
-    static byte[] manifest(byte[] in, String oldPackage, String newPackage, String label) {
+    static byte[] manifest(byte[] in, String oldPackage, String newPackage, String label, String versionName, String versionCodeString) {
+        // Integer.parseInt uses decimal even when the manifest JSON starts with a zero.
+        int versionCode = Integer.parseInt(versionCodeString);
+        if (versionCode <= 0 || versionName == null || versionName.isEmpty()) {
+            throw new IllegalArgumentException("Invalid BTTV version metadata");
+        }
         ByteBuffer buffer = ByteBuffer.wrap(in).order(ByteOrder.LITTLE_ENDIAN);
         int fileHeaderSize = buffer.getShort(2) & 0xFFFF;
         int poolStart = fileHeaderSize;
@@ -93,15 +105,18 @@ public class RenamePackage {
                 renamed++;
             }
         }
-        int labelIndex = -1;
+        // Append new strings rather than changing existing indices; Android's resource
+        // map indexes the beginning of the string pool.
+        int labelIndex = label == null ? -1 : strings.size();
         if (label != null) {
-            // at the end, the first strings belong to the resource map
-            labelIndex = strings.size();
             strings.add(label);
         }
+        int versionNameIndex = strings.size();
+        strings.add(versionName);
 
         byte[] rest = new byte[in.length - poolStart - poolSize];
         System.arraycopy(in, poolStart + poolSize, rest, 0, rest.length);
+        updateVersion(rest, strings, versionNameIndex, versionCode, true);
         int labels = label == null ? 0 : setLabel(rest, strings, labelIndex);
 
         byte[] pool = writeStrings(strings, utf8, buffer.getInt(poolStart + 16));
@@ -110,7 +125,91 @@ public class RenamePackage {
         out.put(pool);
         out.put(rest);
         out.putInt(4, out.capacity());
-        System.out.println("manifest: " + renamed + " strings renamed, " + labels + " labels set");
+        System.out.println("manifest: " + renamed + " strings renamed, " + labels + " labels set, version " + versionName + " (" + versionCode + ")");
+        return out.array();
+    }
+
+    /** Change the compiled manifest's versionCode and versionName in place. */
+    private static void updateVersion(byte[] nodes, List<String> strings, int nameIndex, int versionCode,
+                                      boolean requireVersionName) {
+        ByteBuffer buffer = ByteBuffer.wrap(nodes).order(ByteOrder.LITTLE_ENDIAN);
+        int codeCount = 0;
+        int nameCount = 0;
+        for (int position = 0; position < nodes.length;) {
+            int type = buffer.getShort(position) & 0xFFFF;
+            int headerSize = buffer.getShort(position + 2) & 0xFFFF;
+            int size = buffer.getInt(position + 4);
+            if (size < 8 || position + size > nodes.length) {
+                throw new IllegalStateException("Invalid compiled AndroidManifest.xml chunk");
+            }
+            if (type == CHUNK_XML_START_ELEMENT) {
+                int body = position + headerSize;
+                if ("manifest".equals(strings.get(buffer.getInt(body + 4)))) {
+                    int attributeStart = buffer.getShort(body + 8) & 0xFFFF;
+                    int attributeSize = buffer.getShort(body + 10) & 0xFFFF;
+                    int attributeCount = buffer.getShort(body + 12) & 0xFFFF;
+                    for (int i = 0; i < attributeCount; i++) {
+                        int attribute = body + attributeStart + i * attributeSize;
+                        String key = strings.get(buffer.getInt(attribute + 4));
+                        if ("versionCode".equals(key)) {
+                            buffer.putInt(attribute + 8, -1); // raw string is not used
+                            buffer.put(attribute + 15, (byte) TYPE_INT_DEC);
+                            buffer.putInt(attribute + 16, versionCode);
+                            codeCount++;
+                        } else if ("versionName".equals(key)) {
+                            buffer.putInt(attribute + 8, nameIndex);
+                            buffer.put(attribute + 15, (byte) TYPE_STRING);
+                            buffer.putInt(attribute + 16, nameIndex);
+                            nameCount++;
+                        }
+                    }
+                }
+            }
+            position += size;
+        }
+        if (codeCount != 1 || (requireVersionName && nameCount != 1)) {
+            throw new IllegalStateException("Expected exactly one versionCode and versionName in manifest (found "
+                    + codeCount + "/" + nameCount + ")");
+        }
+    }
+
+    /**
+     * Config splits must use the same package and versionCode as the base APK,
+     * otherwise APKEditor considers them incompatible and may omit their files.
+     * A split manifest may omit versionName, so only update it when present.
+     */
+    static byte[] manifestRenameOnly(byte[] in, String oldPackage, String newPackage,
+                                     String versionName, String versionCodeString) {
+        int versionCode = Integer.parseInt(versionCodeString);
+        if (versionCode <= 0 || versionName == null || versionName.isEmpty()) {
+            throw new IllegalArgumentException("Invalid BTTV split version metadata");
+        }
+        ByteBuffer buffer = ByteBuffer.wrap(in).order(ByteOrder.LITTLE_ENDIAN);
+        int fileHeaderSize = buffer.getShort(2) & 0xFFFF;
+        int poolStart = fileHeaderSize;
+        if ((buffer.getShort(poolStart) & 0xFFFF) != CHUNK_STRING_POOL) {
+            throw new IllegalStateException("string pool expected");
+        }
+        int poolSize = buffer.getInt(poolStart + 4);
+        boolean utf8 = (buffer.getInt(poolStart + 16) & FLAG_UTF8) != 0;
+        if (buffer.getInt(poolStart + 12) != 0) {
+            throw new IllegalStateException("styles are not supported");
+        }
+        List<String> strings = readStrings(buffer, poolStart, utf8);
+        for (int i = 0; i < strings.size(); i++) {
+            strings.set(i, rename(strings.get(i), oldPackage, newPackage));
+        }
+        int versionNameIndex = strings.size();
+        strings.add(versionName);
+        byte[] rest = new byte[in.length - poolStart - poolSize];
+        System.arraycopy(in, poolStart + poolSize, rest, 0, rest.length);
+        updateVersion(rest, strings, versionNameIndex, versionCode, false);
+        byte[] pool = writeStrings(strings, utf8, buffer.getInt(poolStart + 16));
+        ByteBuffer out = ByteBuffer.allocate(fileHeaderSize + pool.length + rest.length).order(ByteOrder.LITTLE_ENDIAN);
+        out.put(in, 0, fileHeaderSize);
+        out.put(pool);
+        out.put(rest);
+        out.putInt(4, out.capacity());
         return out.array();
     }
 
@@ -316,7 +415,8 @@ public class RenamePackage {
     }
 
     /** copies an apk, the entries keep their compression, run zipalign afterwards */
-    private static void apk(String in, String out, String oldPackage, String newPackage) throws Exception {
+    private static void apk(String in, String out, String oldPackage, String newPackage,
+                            String versionName, String versionCode) throws Exception {
         try (ZipFile zip = new ZipFile(in); ZipOutputStream output = new ZipOutputStream(Files.newOutputStream(Paths.get(out)))) {
             Enumeration<? extends ZipEntry> entries = zip.entries();
             while (entries.hasMoreElements()) {
@@ -327,7 +427,9 @@ public class RenamePackage {
                 }
                 byte[] bytes = readAll(zip.getInputStream(entry));
                 if (entry.getName().equals("AndroidManifest.xml")) {
-                    bytes = manifest(bytes, oldPackage, newPackage, null);
+                    // In addition to the package, sync the version metadata. All
+                    // split manifests must match the patched base for APKEditor.
+                    bytes = manifestRenameOnly(bytes, oldPackage, newPackage, versionName, versionCode);
                 } else if (entry.getName().equals("resources.arsc")) {
                     bytes = arsc(bytes, oldPackage, newPackage);
                 }

@@ -128,6 +128,8 @@ public class Emotes {
     }
 
     public static void ensureChannelEmotes(Context context, int id) {
+        // Never request provider catalogs for an unresolved channel ID.
+        if (context == null || id <= 0) return;
         boolean bttvEnabled = EmoteSettings.bttvEnabled();
         boolean ffzEnabled = EmoteSettings.ffzEnabled();
         boolean stvEnabled = EmoteSettings.stvEnabled();

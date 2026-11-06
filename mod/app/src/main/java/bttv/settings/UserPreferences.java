@@ -12,7 +12,6 @@ import java.util.HashSet;
 import java.util.Set;
 
 import bttv.Res;
-import tv.twitch.android.models.settings.SettingsDestination;
 
 public class UserPreferences {
 
@@ -121,8 +120,8 @@ public class UserPreferences {
         }
 
         public static class LinkEntry extends Entry {
-            public final SettingsDestination destination;
-            LinkEntry(Res.strings primaryTextRes, Res.strings secondaryTextRes, Res.strings auxiliaryTextRes, SettingsDestination destination) {
+            public final String destination;
+            LinkEntry(Res.strings primaryTextRes, Res.strings secondaryTextRes, Res.strings auxiliaryTextRes, String destination) {
                 super(null, null, primaryTextRes, secondaryTextRes, auxiliaryTextRes);
                 this.destination = destination;
             }

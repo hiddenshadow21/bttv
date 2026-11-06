@@ -144,8 +144,188 @@ def input_view(text: str) -> str:
         'TwitchEmoteInputView.onAttachedToWindow')
 
 
+
+def settings_fragment_context(text: str) -> str:
+    """Capture the real Activity-backed Context from MainSettingsFragmentV2.
+
+    This uses the Fragment's requireContext(), not the possibly overridden
+    Compose LocalContext. Preserve Apktool's optional `.line` metadata.
+    """
+    signature = '.method public final onCreateView(Landroid/view/LayoutInflater;Landroid/view/ViewGroup;Landroid/os/Bundle;)Landroid/view/View;\n'
+    pattern = re.compile(
+        r'(    invoke-virtual \{p0\}, Landroidx/fragment/app/m;->requireContext\(\)Landroid/content/Context;\n'
+        r'(?:\s*\.line [0-9]+\n)*'
+        r'    move-result-object p3\n)')
+    def patch(body):
+        matches = list(pattern.finditer(body))
+        if len(matches) != 1:
+            raise PatchError(f'MainSettingsFragmentV2 host context: expected one requireContext site, got {len(matches)}')
+        position = matches[0].end()
+        return (body[:position] +
+                '    # BTTV 31.8: capture actual settings Fragment host context\n'
+                '    invoke-static {p3}, Lbttv/settings/SettingsOverlay318;->rememberContext(Landroid/content/Context;)V\n'
+                + body[position:])
+    return change_method(text, signature, patch, 'MainSettingsFragmentV2 host context')
+
+
+def settings_compose(text: str) -> str:
+    """Insert a real scrollable Compose settings row into Twitch 31.8.0.
+
+    The visible screen is MainSettingsFragmentV2 via l7m -> vo2 -> ilj.h,
+    *not* the old MainSettingsFragment backed by xpo/xoz/qnc.
+
+    ilj.m is the existing click-enabled settings row component. The current
+    Compose LocalContext and an explicit cpi callback are supplied to it.
+    """
+    signature = locate_method(text, 'h')
+    # ilj has a unique h() method with a long Compose signature; explicitly
+    # check the type to avoid hitting an unrelated obfuscated overload.
+    if not signature.startswith('.method public static final h(Lcpi;ZZZZZZ'):
+        raise PatchError('Compose settings: ilj.h has an unexpected signature')
+    anchor = ('    invoke-static {v7, v8, v0, v2}, Lilj;->d(ZLcpi;Lb0a;I)V\n\n'
+              '    shr-int/lit8 v2, v37, 0x15\n')
+    snippet = ("""    invoke-static {v7, v8, v0, v2}, Lilj;->d(ZLcpi;Lb0a;I)V
+
+    # BTTV 31.8: native scrolling Compose row, alongside other settings items
+    # v0 is the active s0j composer at this site (not an Activity).
+    # Compose has finished using v2 for the preceding row. The next instruction
+    # reinitializes it, so v2 is safe as a 4-bit invoke argument register.
+    sget-object v2, Lrq0;->b:Licf;
+    invoke-virtual {v0, v2}, Ls0j;->m(Landroidx/compose/runtime/g;)Ljava/lang/Object;
+    move-result-object v2
+    check-cast v2, Landroid/content/Context;
+    new-instance v15, Lbttv/compat/SettingsClick318;
+    invoke-direct {v15, v2}, Lbttv/compat/SettingsClick318;-><init>(Landroid/content/Context;)V
+    const-string v13, "BTTV settings"
+    const/4 v14, 0x0
+    const v16, 0x7f080673
+    const/16 v17, 0x0
+    move-object/from16 v18, v0
+    const/16 v19, 0x0
+    const/16 v20, 0x12
+    invoke-static/range {v13 .. v20}, Lilj;->m(Ljava/lang/String;Ljava/lang/String;Lcpi;ILdhj;Lb0a;II)V
+
+    shr-int/lit8 v2, v37, 0x15
+""")
+    return change_method(text, signature,
+                         lambda body: replace_once(body, anchor, snippet,
+                                'MainSettingsFragmentV2 Compose row'),
+                         'MainSettingsFragmentV2 Compose row')
+
+
+SETTINGS_CLICK_SMALI = """.class public final Lbttv/compat/SettingsClick318;
+.super Ljava/lang/Object;
+.implements Lcpi;
+
+.field private final context:Landroid/content/Context;
+
+.method public constructor <init>(Landroid/content/Context;)V
+    .locals 0
+    invoke-direct {p0}, Ljava/lang/Object;-><init>()V
+    iput-object p1, p0, Lbttv/compat/SettingsClick318;->context:Landroid/content/Context;
+    return-void
+.end method
+
+.method public invoke()Ljava/lang/Object;
+    .locals 2
+    const-string v0, "LBTTVSettings318"
+    const-string v1, "Compose BTTV settings click invoked"
+    invoke-static {v0, v1}, Landroid/util/Log;->i(Ljava/lang/String;Ljava/lang/String;)I
+    iget-object v0, p0, Lbttv/compat/SettingsClick318;->context:Landroid/content/Context;
+    invoke-static {v0}, Lbttv/settings/SettingsOverlay318;->open(Landroid/content/Context;)V
+    sget-object v0, Lg760;->a:Lg760;
+    return-object v0
+.end method
+"""
+
+
+def react_text_manager(text: str, name: str) -> str:
+    """Hook the actual 31.8.0 text payload field, not a nonexistent getText().
+
+    The decoded RN managers use concrete payload classes:
+      qjw.a: Spannable, PreparedLayout.a: android.text.Layout.
+    Both are verified from the provided 31.8.0 smali archive.
+    """
+    if name.endswith('/ReactTextViewManager.smali'):
+        signature = '.method public updateExtraData(Lrjw;Ljava/lang/Object;)V\n'
+        anchor = '    iget-object v0, p2, Lqjw;->a:Landroid/text/Spannable;\n'
+        replacement = (anchor +
+            '    # BTTV 31.8: style real RN Spannable after text update is decoded\n'
+            '    invoke-static {v0}, Lbttv/ChatTimestamps;->styleText(Ljava/lang/CharSequence;)V\n')
+    elif name.endswith('/PreparedLayoutTextViewManager.smali'):
+        signature = ('.method public updateExtraData('
+                     'Lcom/facebook/react/views/text/PreparedLayoutTextView;Ljava/lang/Object;)V\n')
+        anchor = ('    iget-object v0, p2, Lcom/facebook/react/views/text/PreparedLayout;'
+                  '->a:Landroid/text/Layout;\n')
+        replacement = (anchor +
+            '    # BTTV 31.8: prepare gray timestamp span in prepared layout\n'
+            '    invoke-virtual {v0}, Landroid/text/Layout;->getText()Ljava/lang/CharSequence;\n'
+            '    move-result-object v1\n'
+            '    invoke-static {v1}, Lbttv/ChatTimestamps;->styleText(Ljava/lang/CharSequence;)V\n')
+    else:
+        raise PatchError(f'Unexpected React text manager: {name}')
+    return change_method(text, signature,
+        lambda body: replace_once(body, anchor, replacement, name + ' text payload'),
+        name + ' text payload')
+
+
+def locate_react_text_updates(work: Path) -> list:
+    names = (
+        'com/facebook/react/views/text/ReactTextViewManager.smali',
+        'com/facebook/react/views/text/PreparedLayoutTextViewManager.smali',
+    )
+    results = []
+    for name in names:
+        path = select(work, name)
+        original = path.read_text(encoding='utf-8')
+        if '# BTTV 31.8:' in original:
+            raise PatchError(f'{name}: already patched; start from a clean APK')
+        results.append((path, react_text_manager(original, name)))
+    return results
+
+
+def settings_version(text: str) -> str:
+    # Derived from the 31.8.0 l7m Compose footer patch in the slop bundle.
+    # Fetch versionName at runtime from the BTTV Android manifest rather
+    # than embedding an unrelated Twitch version or a hard-coded BTTV tag.
+    anchor = ('    move-result-object v4\n\n    .line 2434\n'
+              '    invoke-virtual {v0}, Ls0j;->m0()Ljava/lang/Object;\n')
+    snippet = ('    move-result-object v4\n\n'
+               '    # BTTV 31.8: versionName from bttv.manifest.json at build time\n'
+               '    invoke-static {}, Lbttv/settings/SettingsOverlay318;->versionLabel()Ljava/lang/String;\n'
+               '    move-result-object v4\n\n    .line 2434\n'
+               '    invoke-virtual {v0}, Ls0j;->m0()Ljava/lang/Object;\n')
+    return replace_once(text, anchor, snippet, 'Compose settings version footer')
+
+
+def timestamp_native(text: str) -> str:
+    """Expose BTTV's preference to Twitch's 31.8.0 native chat renderer.
+
+    This is the original 31.8 `k76` flag identified by the slop port.
+    Unlike IRC display-name prefixes, it uses Twitch's own timestamp span,
+    which is already used for messages loaded from history.
+    """
+    anchor = '    iget-boolean v6, p0, Lk76;->g:Z\n'
+    if text.count(anchor) != 1:
+        raise PatchError('native timestamp: missing or non-unique 31.8.0 flag')
+    pos = text.index(anchor)
+    # Verify the adjacent fields from the existing 31.8.0 patch to guard
+    # against accidentally modifying an unrelated boolean in another build.
+    before = text[max(0, pos - 260):pos]
+    after = text[pos + len(anchor):pos + len(anchor) + 260]
+    if 'Lk76;->f:Lnb6;' not in before or 'Lk76;->h:Ltv/twitch/android/core/mvp/viewdelegate/EventDispatcher;' not in after:
+        raise PatchError('native timestamp: surrounding 31.8.0 model changed')
+    return replace_once(text, anchor,
+        anchor + '    # BTTV 31.8: use Twitch native timestamp span, not IRC username prefix\n'
+        '    invoke-static {v6}, Lbttv/ChatTimestamps;->shouldShow(Z)Z\n'
+        '    move-result v6\n', 'Twitch live chat timestamp')
+
 TARGETS = (
     ('tv/twitch/android/app/consumer/TwitchApplication.smali', app),
+    ('tv/twitch/android/settings/main/MainSettingsFragmentV2.smali', settings_fragment_context),
+    ('ilj.smali', settings_compose),
+    ('l7m.smali', settings_version),
+    ('k76.smali', timestamp_native),
     ('fy90.smali', websocket),
     ('com/facebook/react/modules/network/NetworkingModule.smali', network),
     ('com/facebook/react/views/image/ReactImageManager.smali', image_manager),
@@ -167,9 +347,15 @@ def apply(work: Path, check: bool = False) -> list:
             raise PatchError(f'{name}: already contains BTTV 31.8.0 injected hooks; start from clean base')
         updated = transformer(old)
         changes.append((path, updated))
+    changes.extend(locate_react_text_updates(work))
+    callback_path = work / 'smali_classes6/bttv/compat/SettingsClick318.smali'
+    if callback_path.exists():
+        raise PatchError('Settings click callback already exists; start from clean base')
+    changes.append((callback_path, SETTINGS_CLICK_SMALI))
     # The entire matching pass must complete before writing ANY file.
     if not check:
         for path, updated in changes:
+            path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(updated, encoding='utf-8')
     return [path for path, _ in changes]
 

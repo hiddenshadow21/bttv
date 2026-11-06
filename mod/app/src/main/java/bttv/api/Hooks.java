@@ -63,7 +63,7 @@ public class Hooks {
             if (!text.contains(" PRIVMSG #")) {
                 return text;
             }
-            return IrcEmotes.rewriteFrame(text);
+            return bttv.ChatTimestamps.rewriteFrame(IrcEmotes.rewriteFrame(text));
         } catch (Throwable t) {
             Log.e(TAG, "onWebSocketText: ", t);
             return text;

@@ -27,9 +27,7 @@ git commit -q -m "base"
 git tag base
 cd ..
 
-# built on the container's file system, the disk of a Mac is not case sensitive
-rm -rf mod
-cp -r /repo/mod mod
-rm -rf mod/.gradle mod/build mod/*/build mod/local.properties
+# The mod Gradle project is copied separately by build_mod.sh, so changing
+# mod sources does not invalidate Docker's decoded Twitch APK cache.
 
 echo "done, next: apply_hooks.sh and build_mod.sh"

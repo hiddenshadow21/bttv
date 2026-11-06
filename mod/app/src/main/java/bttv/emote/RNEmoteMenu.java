@@ -20,6 +20,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import bttv.Data;
+import bttv.emote.EmoteSettings;
 import bttv.Network;
 import bttv.RNNetwork;
 
@@ -73,16 +74,17 @@ public class RNEmoteMenu {
         int emoteSetsIndex = -1;
         int channel = Data.currentBroadcasterId;
         boolean channelFromRequest = false;
+        // 31.8.0 does not always send ChatChannelLockedEmotes in the same
+        // GraphQL batch as ChatEmoteSets. Resolve the broadcaster from the
+        // picker operation itself as well, before loading channel catalogs.
         for (int i = 0; i < operations.length(); i++) {
             JSONObject operation = operations.getJSONObject(i);
             String name = operation.optString("operationName");
-            if (OPERATION.equals(name)) {
-                emoteSetsIndex = i;
-            } else if (CHANNEL_OPERATION.equals(name)) {
-                JSONObject variables = operation.optJSONObject("variables");
-                String id = variables == null ? "" : variables.optString("channelOwnerID", "");
-                if (!id.isEmpty()) {
-                    channel = Integer.parseInt(id);
+            if (OPERATION.equals(name)) emoteSetsIndex = i;
+            if (CHANNEL_OPERATION.equals(name) || OPERATION.equals(name)) {
+                int candidate = channelIdFromVariables(operation.optJSONObject("variables"));
+                if (candidate > 0) {
+                    channel = candidate;
                     channelFromRequest = true;
                 }
             }
@@ -90,10 +92,19 @@ public class RNEmoteMenu {
         if (emoteSetsIndex == -1) {
             throw new IllegalStateException("operation not found");
         }
-        if (channel > 0 && channel != Data.currentBroadcasterId) {
-            Data.setCurrentBroadcasterId(channel);
-        } else {
+        if (channel <= 0) {
+            // ROOMSTATE sometimes arrives just after the picker request.
+            long deadline = System.currentTimeMillis() + 1500;
+            while (channel <= 0 && System.currentTimeMillis() < deadline) {
+                Thread.sleep(50);
+                channel = Data.currentBroadcasterId;
+            }
+        }
+        if (channel > 0) {
+            if (channel != Data.currentBroadcasterId) Data.setCurrentBroadcasterId(channel);
             Emotes.ensureChannelEmotes(Data.ctx, channel);
+        } else {
+            Log.w(TAG, "Picker request has no channel ID; displaying global emotes only");
         }
 
         // the real request
@@ -152,6 +163,21 @@ public class RNEmoteMenu {
         }
 
         RNNetwork.emitResponse(module, requestId, status, responseHeaders, url, newBody);
+    }
+
+    private static int channelIdFromVariables(JSONObject variables) {
+        if (variables == null) return -1;
+        String[] keys = {"channelOwnerID", "channelID", "broadcasterID", "broadcasterId", "channelId"};
+        for (String key : keys) {
+            String raw = variables.optString(key, "");
+            if (!raw.isEmpty()) {
+                try {
+                    int id = Integer.parseInt(raw);
+                    if (id > 0) return id;
+                } catch (NumberFormatException ignored) { }
+            }
+        }
+        return -1;
     }
 
     // the answer is built from the emotes we have, so the lists of this channel should be loaded
@@ -218,18 +244,24 @@ public class RNEmoteMenu {
         // emotes of the current channel first, then the global ones
         // the chat caches sets by their id, so the sets of a channel have the channel in their id
         int added = 0;
-        added += addEmoteSet(emoteSets, setTemplate, emoteTemplate, ownerTemplate, "BetterTTV Channel", "betterttv-channel-" + channel, BTTV_ICON,
-                channelEmotes(Emotes.Source.BTTV, Emotes.channelEmotesBTTV.get(channel), channel));
-        added += addEmoteSet(emoteSets, setTemplate, emoteTemplate, ownerTemplate, "FrankerFaceZ Channel", "frankerfacez-channel-" + channel, FFZ_ICON,
-                channelEmotes(Emotes.Source.FFZ, Emotes.channelEmotesFFZ.get(channel), channel));
-        added += addEmoteSet(emoteSets, setTemplate, emoteTemplate, ownerTemplate, "7TV Channel", "seventv-channel-" + channel, STV_ICON,
-                channelEmotes(Emotes.Source.STV, Emotes.channelEmotes7TV.get(channel), channel));
-        added += addEmoteSet(emoteSets, setTemplate, emoteTemplate, ownerTemplate, "BetterTTV Global", "betterttv-global", BTTV_ICON,
-                globalEmotes(Emotes.globalEmotesBTTV.values()));
-        added += addEmoteSet(emoteSets, setTemplate, emoteTemplate, ownerTemplate, "FrankerFaceZ Global", "frankerfacez-global", FFZ_ICON,
-                globalEmotes(Emotes.globalEmotesFFZ.values()));
-        added += addEmoteSet(emoteSets, setTemplate, emoteTemplate, ownerTemplate, "7TV Global", "seventv-global", STV_ICON,
-                globalEmotes(Emotes.globalEmotes7TV.values()));
+        if (EmoteSettings.bttvEnabled()) {
+            added += addEmoteSet(emoteSets, setTemplate, emoteTemplate, ownerTemplate, "BetterTTV Channel", "betterttv-channel-" + channel, BTTV_ICON,
+                    channelEmotes(Emotes.Source.BTTV, Emotes.channelEmotesBTTV.get(channel), channel));
+            added += addEmoteSet(emoteSets, setTemplate, emoteTemplate, ownerTemplate, "BetterTTV Global", "betterttv-global", BTTV_ICON,
+                    globalEmotes(Emotes.globalEmotesBTTV.values()));
+        }
+        if (EmoteSettings.ffzEnabled()) {
+            added += addEmoteSet(emoteSets, setTemplate, emoteTemplate, ownerTemplate, "FrankerFaceZ Channel", "frankerfacez-channel-" + channel, FFZ_ICON,
+                    channelEmotes(Emotes.Source.FFZ, Emotes.channelEmotesFFZ.get(channel), channel));
+            added += addEmoteSet(emoteSets, setTemplate, emoteTemplate, ownerTemplate, "FrankerFaceZ Global", "frankerfacez-global", FFZ_ICON,
+                    globalEmotes(Emotes.globalEmotesFFZ.values()));
+        }
+        if (EmoteSettings.stvEnabled()) {
+            added += addEmoteSet(emoteSets, setTemplate, emoteTemplate, ownerTemplate, "7TV Channel", "seventv-channel-" + channel, STV_ICON,
+                    channelEmotes(Emotes.Source.STV, Emotes.channelEmotes7TV.get(channel), channel));
+            added += addEmoteSet(emoteSets, setTemplate, emoteTemplate, ownerTemplate, "7TV Global", "seventv-global", STV_ICON,
+                    globalEmotes(Emotes.globalEmotes7TV.values()));
+        }
         for (int i = 0; i < original.length(); i++) {
             emoteSets.put(original.get(i));
         }
@@ -243,7 +275,8 @@ public class RNEmoteMenu {
         }
         for (String code : new ArrayList<>(channelCodes)) {
             Emote emote = Emotes.getEmote(channel, code);
-            if (emote != null && emote.source == source) {
+            if (emote != null && emote.source == source
+                    && (EmoteSettings.gifEnabled() || !"gif".equals(emote.imageType))) {
                 emotes.put(emote.id, emote);
             }
         }
@@ -253,7 +286,9 @@ public class RNEmoteMenu {
     private static Map<String, Emote> globalEmotes(Collection<Emote> globals) {
         Map<String, Emote> emotes = new LinkedHashMap<>();
         for (Emote emote : new ArrayList<>(globals)) {
-            emotes.put(emote.id, emote);
+            if (EmoteSettings.gifEnabled() || !"gif".equals(emote.imageType)) {
+                emotes.put(emote.id, emote);
+            }
         }
         return emotes;
     }

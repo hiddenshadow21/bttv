@@ -1,48 +1,69 @@
-"""Test that 31.8.0 anchors patch atomically, and incorrect targets fail closed.
+"""Tests for the Twitch 31.8.0 source-verified settings and RN text hooks.
 
-Synthetic fragments are based on the supplied slop patch contexts. They are
-NOT a substitute for a build against the real Twitch 31.8.0 base APK.
+Synthetic fixtures validate atomic changes and preconditions. The smali
+signatures were inspected in the user's actual Twitch 31.8.0 decode.
 """
 import importlib.util
+import re
 from pathlib import Path
 import tempfile
 import unittest
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'apply_hooks_31_8.py'
-spec = importlib.util.spec_from_file_location('bttv_port_318', SCRIPT)
+spec = importlib.util.spec_from_file_location('bttv318', SCRIPT)
 port = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(port)
 
 FIXTURES = {
     'smali/tv/twitch/android/app/consumer/TwitchApplication.smali': (
-        '.class public Ltv/twitch/android/app/consumer/TwitchApplication;\n'
         '.method public onCreate()V\n    .locals 28\n'
         '    invoke-virtual {v1}, Ltv/twitch/android/app/consumer/TwitchApplication;->b()V\n'
         '    return-void\n.end method\n'),
-    'smali_classes3/fy90.smali': (
-        '.class public Lfy90;\n'
-        '.method public final n(Lnpw;Ljava/lang/String;)V\n    .locals 3\n'
-        '    .line 1\n    invoke-virtual {p1}, Ljava/lang/Object;->getClass()Ljava/lang/Class;\n'
+    'smali_classes2/tv/twitch/android/settings/main/MainSettingsFragmentV2.smali': (
+        '.method public final onCreateView(Landroid/view/LayoutInflater;Landroid/view/ViewGroup;Landroid/os/Bundle;)Landroid/view/View;\n'
+        '    .locals 1\n'
+        '    invoke-virtual {p0}, Landroidx/fragment/app/m;->requireContext()Landroid/content/Context;\n'
+        '    move-result-object p3\n'
+        '    new-instance p1, Landroidx/compose/ui/platform/ComposeView;\n'
+        '    return-object p1\n.end method\n'),
+    'smali_classes4/ilj.smali': (
+        '.method public static final h(Lcpi;ZZZZZZLjava/lang/String;)V\n'
+        '    .locals 39\n'
+        '    invoke-static {v7, v8, v0, v2}, Lilj;->d(ZLcpi;Lb0a;I)V\n\n'
+        '    shr-int/lit8 v2, v37, 0x15\n'
+        '    return-void\n.end method\n'),
+    'smali_classes6/l7m.smali': (
+        '.method public final invoke()Ljava/lang/Object;\n    .locals 5\n'
+        '    move-result-object v4\n\n    .line 2434\n'
+        '    invoke-virtual {v0}, Ls0j;->m0()Ljava/lang/Object;\n'
         '.end method\n'),
+    'smali_classes2/k76.smali': (
+        '.method public final a()V\n    .locals 10\n'
+        '    iget-object v5, p0, Lk76;->f:Lnb6;\n'
+        '    .line 26\n    .line 27\n'
+        '    iget-boolean v6, p0, Lk76;->g:Z\n'
+        '    .line 28\n    .line 29\n'
+        '    iget-object v7, p0, Lk76;->h:Ltv/twitch/android/core/mvp/viewdelegate/EventDispatcher;\n'
+        '    return-void\n.end method\n'),
+    'smali_classes3/fy90.smali': (
+        '.method public final n(Lnpw;Ljava/lang/String;)V\n    .locals 3\n'
+        '    return-void\n.end method\n'),
     'smali_classes3/com/facebook/react/modules/network/NetworkingModule.smali': (
         '.method public sendRequest(Ljava/lang/String;Ljava/lang/String;D'
         'Lcom/facebook/react/bridge/ReadableArray;Lcom/facebook/react/bridge/ReadableMap;'
         'Ljava/lang/String;ZDZ)V\n    .locals 1\n'
-        '    invoke-static {p1, p2, p7}, Lkgp;->z(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V\n'
-        '.end method\n'),
+        '    return-void\n.end method\n'),
     'smali_classes3/com/facebook/react/views/image/ReactImageManager.smali': (
         '.method public setSource(Landroid/view/View;Lcom/facebook/react/bridge/ReadableArray;)V\n'
         '    .annotation runtime Lcom/facebook/react/uimanager/annotations/ReactProp;\n'
         '        name = "source"\n    .end annotation\n\n'
-        '    .line 1\n    invoke-virtual {p1}, Ljava/lang/Object;->getClass()Ljava/lang/Class;\n'
-        '.end method\n'),
+        '    return-void\n.end method\n'),
     'smali_classes4/com/twitchrn/emoteinput/TwitchEmoteInputView$EmoteSpanTarget.smali': (
         '.method public constructor <init>(IIILjava/lang/String;Ljava/lang/Integer;)V\n'
-        '    .locals 0\n    invoke-virtual {p4}, Ljava/lang/Object;->getClass()Ljava/lang/Class;\n'
-        '.end method\n'),
+        '    .locals 0\n    return-void\n.end method\n'),
     'smali_classes4/com/twitchrn/emoteinput/EmoteImageLoader.smali': (
         '.method private final fetch(Ljava/lang/String;)Landroid/graphics/Bitmap;\n'
-        '    .locals 2\n    new-instance p0, Ljava/net/URL;\n.end method\n'),
+        '    .locals 2\n    return-object v0\n.end method\n'),
     'smali_classes4/com/twitchrn/emoteinput/EmoteImageSpan.smali': (
         '.method public draw(Landroid/graphics/Canvas;)V\n    .locals 1\n'
         '    invoke-virtual {p1, p5, p2, p3, p0}, Landroid/graphics/Canvas;'
@@ -50,50 +71,155 @@ FIXTURES = {
         'Landroid/graphics/RectF;Landroid/graphics/Paint;)V\n.end method\n'),
     'smali_classes4/com/twitchrn/emoteinput/TwitchEmoteInputView.smali': (
         '.method protected onAttachedToWindow()V\n    .locals 1\n'
-        '    invoke-super {p0}, Landroid/view/View;->onAttachedToWindow()V\n'
+        '    return-void\n.end method\n'),
+    'smali_classes3/com/facebook/react/views/text/ReactTextViewManager.smali': (
+        '.method public bridge synthetic updateExtraData(Landroid/view/View;Ljava/lang/Object;)V\n'
+        '    .locals 0\n    return-void\n.end method\n'
+        '.method public updateExtraData(Lrjw;Ljava/lang/Object;)V\n'
+        '    .locals 3\n'
+        '    check-cast p2, Lqjw;\n'
+        '    iget-object v0, p2, Lqjw;->a:Landroid/text/Spannable;\n'
+        '    invoke-virtual {p1, p2}, Lrjw;->setText(Lqjw;)V\n'
+        '    return-void\n.end method\n'),
+    'smali_classes3/com/facebook/react/views/text/PreparedLayoutTextViewManager.smali': (
+        '.method public updateExtraData('
+        'Lcom/facebook/react/views/text/PreparedLayoutTextView;Ljava/lang/Object;)V\n'
+        '    .locals 3\n'
+        '    check-cast p2, Lcom/facebook/react/views/text/PreparedLayout;\n'
+        '    iget-object v0, p2, Lcom/facebook/react/views/text/PreparedLayout;->a:Landroid/text/Layout;\n'
+        '    invoke-virtual {p1, p2}, Lcom/facebook/react/views/text/PreparedLayoutTextView;->setPreparedLayout(Lcom/facebook/react/views/text/PreparedLayout;)V\n'
         '    return-void\n.end method\n'),
 }
 
 
-class HookTests(unittest.TestCase):
+class Tests(unittest.TestCase):
     def setUp(self):
-        self.dir = tempfile.TemporaryDirectory()
-        self.root = Path(self.dir.name)
-        for path, code in FIXTURES.items():
-            full = self.root / path
-            full.parent.mkdir(parents=True, exist_ok=True)
-            full.write_text(code)
+        self.temp = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp.name)
+        for rel, source in FIXTURES.items():
+            path = self.root / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(source)
 
     def tearDown(self):
-        self.dir.cleanup()
+        self.temp.cleanup()
 
-    def test_check_mode_does_not_write(self):
-        self.assertEqual(len(port.apply(self.root, check=True)), 8)
-        for path, code in FIXTURES.items():
-            self.assertEqual((self.root / path).read_text(), code)
+    def test_check_only_is_atomic(self):
+        self.assertEqual(len(port.apply(self.root, check=True)), 15)
+        for rel, contents in FIXTURES.items():
+            self.assertEqual(contents, (self.root / rel).read_text())
+        self.assertFalse((self.root / 'smali_classes6/bttv/compat/SettingsClick318.smali').exists())
 
-    def test_all_eight_targets_are_injected(self):
-        self.assertEqual(len(port.apply(self.root)), 8)
-        for path in FIXTURES:
-            patched = (self.root / path).read_text()
-            self.assertIn('Lbttv/api/Hooks;->', patched)
-        self.assertIn('onWebSocketText', (self.root / 'smali_classes3/fy90.smali').read_text())
-        self.assertIn('interceptHttpRequest', (self.root / 'smali_classes3/com/facebook/react/modules/network/NetworkingModule.smali').read_text())
+    def test_all_15_targets(self):
+        self.assertEqual(len(port.apply(self.root)), 15)
+        self.assertIn('Lilj;->m(Ljava/lang/String;',
+                      (self.root / 'smali_classes4/ilj.smali').read_text())
+        self.assertIn('Lrq0;->b:Licf;', (self.root / 'smali_classes4/ilj.smali').read_text())
+        self.assertIn('Lcpi;',
+                      (self.root / 'smali_classes6/bttv/compat/SettingsClick318.smali').read_text())
+        self.assertIn('SettingsOverlay318;->open(Landroid/content/Context;)V',
+                      (self.root / 'smali_classes6/bttv/compat/SettingsClick318.smali').read_text())
+        self.assertIn('ChatTimestamps;->styleText',
+                      (self.root / 'smali_classes3/com/facebook/react/views/text/ReactTextViewManager.smali').read_text())
+        self.assertIn('Lqjw;->a:Landroid/text/Spannable;',
+                      (self.root / 'smali_classes3/com/facebook/react/views/text/ReactTextViewManager.smali').read_text())
+        self.assertIn('Landroid/text/Layout;->getText()',
+                      (self.root / 'smali_classes3/com/facebook/react/views/text/PreparedLayoutTextViewManager.smali').read_text())
+        self.assertIn('rememberContext(Landroid/content/Context;)V',
+                      (self.root / 'smali_classes2/tv/twitch/android/settings/main/MainSettingsFragmentV2.smali').read_text())
+        self.assertIn('Compose BTTV settings click invoked',
+                      (self.root / 'smali_classes6/bttv/compat/SettingsClick318.smali').read_text())
+        self.assertIn('versionLabel', (self.root / 'smali_classes6/l7m.smali').read_text())
+        self.assertIn('shouldShow', (self.root / 'smali_classes2/k76.smali').read_text())
 
-    def test_no_partial_changes_on_bad_anchor(self):
-        path = self.root / 'smali_classes3/fy90.smali'
-        path.write_text(path.read_text().replace('Lnpw;', 'Lwrong;'))
+    def test_missing_real_settings_host_context_fails_atomically(self):
+        path = self.root / 'smali_classes2/tv/twitch/android/settings/main/MainSettingsFragmentV2.smali'
+        path.write_text(path.read_text().replace('requireContext()', 'getContext()'))
         with self.assertRaises(port.PatchError):
             port.apply(self.root)
-        for filename, code in FIXTURES.items():
-            if filename != 'smali_classes3/fy90.smali':
-                self.assertEqual((self.root / filename).read_text(), code)
+        self.assertEqual(FIXTURES['smali_classes4/ilj.smali'],
+                         (self.root / 'smali_classes4/ilj.smali').read_text())
 
-    def test_reapplication_fails_instead_of_duplicating(self):
+    def test_missing_settings_anchor_fails_before_write(self):
+        p = self.root / 'smali_classes4/ilj.smali'
+        p.write_text(p.read_text().replace('Lilj;->d(', 'Lilj;->NOPE('))
+        with self.assertRaises(port.PatchError): port.apply(self.root)
+        self.assertEqual(FIXTURES['smali_classes3/fy90.smali'],
+                         (self.root / 'smali_classes3/fy90.smali').read_text())
+
+    def test_missing_real_RN_text_field_fails_atomically(self):
+        p = self.root / 'smali_classes3/com/facebook/react/views/text/ReactTextViewManager.smali'
+        p.write_text(p.read_text().replace('Lqjw;->a:', 'Lqjw;->wrong:'))
+        with self.assertRaises(port.PatchError): port.apply(self.root)
+        self.assertEqual(FIXTURES['smali_classes4/ilj.smali'],
+                         (self.root / 'smali_classes4/ilj.smali').read_text())
+
+    def test_prepared_layout_signature_required(self):
+        p = self.root / 'smali_classes3/com/facebook/react/views/text/PreparedLayoutTextViewManager.smali'
+        p.write_text(p.read_text().replace('PreparedLayoutTextView;', 'WrongView;'))
+        with self.assertRaises(port.PatchError): port.apply(self.root)
+
+    def test_compose_settings_row_uses_encodable_registers(self):
+        # The 35c invoke forms and const/4 are 4-bit register encodings.
+        # The real 31.8.0 ilj.h uses v0..v38, so v16+ must not appear
+        # in those instructions even though the method has .locals 39.
         port.apply(self.root)
-        with self.assertRaises(port.PatchError):
-            port.apply(self.root)
+        smali = (self.root / 'smali_classes4/ilj.smali').read_text()
+        injected = smali.split('    # BTTV 31.8: native scrolling Compose row', 1)[1]
+        injected = injected.split('    shr-int/lit8 v2, v37, 0x15', 1)[0]
+        for line in injected.splitlines():
+            line = line.strip()
+            if line.startswith('invoke-') and '/range' not in line:
+                regs = re.search(r'\{([^}]*)\}', line)
+                self.assertIsNotNone(regs, line)
+                for register in re.findall(r'v(\d+)', regs.group(1)):
+                    self.assertLess(int(register), 16, line)
+            if line.startswith('const/4 '):
+                match = re.search(r'const/4 v(\d+),', line)
+                self.assertIsNotNone(match, line)
+                self.assertLess(int(match.group(1)), 16, line)
+        self.assertIn('invoke-virtual {v0, v2}', injected)
+        self.assertIn('invoke-direct {v15, v2}', injected)
+        self.assertIn('const/16 v17, 0x0', injected)
+        self.assertIn('const/16 v19, 0x0', injected)
+        self.assertIn('invoke-static/range {v13 .. v20}', injected)
+
+    def test_no_legacy_settings_targets(self):
+        self.assertFalse(any(n in (x[0] for x in port.TARGETS) for n in
+                             ('xpo.smali','xoz.smali','qnc.smali')))
+
+    def test_correct_timestamp_preference_wiring(self):
+        java = SCRIPT.parents[1] / 'mod/app/src/main/java'
+        hooks = (java / 'bttv/api/Hooks.java').read_text()
+        overlay = (java / 'bttv/settings/SettingsOverlay318.java').read_text()
+        timestamp = (java / 'bttv/ChatTimestamps.java').read_text()
+        self.assertIn('ChatTimestamps.rewriteFrame(IrcEmotes.rewriteFrame(text))', hooks)
+        self.assertIn('Settings.AlwaysShowChatTimestamps', timestamp)
+        self.assertIn('Settings.AlwaysShowChatTimestamps', overlay)
+        self.assertIn('styleText(CharSequence text)', timestamp)
+        self.assertNotIn('reactTextGetText', timestamp)
+        self.assertIn('public static void open(Context context)', overlay)
+        self.assertIn('public static void rememberContext(Context context)', overlay)
+        self.assertIn('new Entry.BoolValue(true)',
+                      (java / 'bttv/settings/Settings.java').read_text().split('AlwaysShowChatTimestamps(', 1)[1])
+
+    def test_reapplication_rejected(self):
+        port.apply(self.root)
+        with self.assertRaises(port.PatchError): port.apply(self.root)
+
+    def test_duplicate_callback_rejected(self):
+        p = self.root / 'smali_classes6/bttv/compat/SettingsClick318.smali'
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text('duplicate')
+        with self.assertRaisesRegex(port.PatchError,'already exists'): port.apply(self.root)
+
+    def test_react_native_manager_concrete_not_bridge(self):
+        port.apply(self.root)
+        p = self.root / 'smali_classes3/com/facebook/react/views/text/ReactTextViewManager.smali'
+        s = p.read_text()
+        self.assertEqual(s.count('ChatTimestamps;->styleText'),1)
+        bridge=s.split('.method public bridge synthetic')[1].split('.end method')[0]
+        self.assertNotIn('ChatTimestamps',bridge)
 
 
-if __name__ == '__main__':
-    unittest.main()
+if __name__=='__main__': unittest.main()

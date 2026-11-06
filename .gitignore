@@ -1,15 +1,7 @@
-*.apk
-extracted
-disass
-dist
-decompiled
-keystore.jks
-twitch.zip
-.tmp
-.env
-.bttv-cache
-old
-
-twitch
-.idea
-.DS_Store
+# Original Twitch package is proprietary and must never be committed.
+/twitch.zip
+/*.apkm
+/*.apk
+/dist/
+/out/
+/*.exe
