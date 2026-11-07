@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import bttv.Data;
 import bttv.Res;
 import bttv.ResUtil;
+import bttv.SplitChat318;
 
 /** Open BTTV preferences from the clickable Compose settings row injected
  * into Twitch 31.8.0's MainSettingsFragmentV2 scrolling content.
@@ -116,6 +117,11 @@ public final class SettingsOverlay318 {
             addGifMode(activity, rows);
             addHeading(activity, rows, "Chat");
             addSwitch(activity, rows, "Always show chat timestamps", Settings.AlwaysShowChatTimestamps);
+            addSwitch(activity, rows, "Show deleted chat messages", Settings.ShowDeletedMessagesEnabled);
+            addSwitch(activity, rows, "Split chat (alternating row backgrounds)", Settings.SplitChatEnabled);
+            addSeparatorMode(activity, rows);
+            addHeading(activity, rows, "Channel points");
+            addSwitch(activity, rows, "Automatically claim bonus points", Settings.AutoRedeemChannelPointsEnabled);
             TextView hint = new TextView(activity);
             hint.setText("Applies to new live messages. Reopen the stream after changing settings.");
             hint.setTextSize(12);
@@ -159,8 +165,46 @@ public final class SettingsOverlay318 {
         toggle.setOnCheckedChangeListener((button, checked) -> {
             preference.set(ctx, new UserPreferences.Entry.BoolValue(checked));
             Log.i(TAG, "Changed " + preference.key + " to " + checked);
+            if (setting == Settings.SplitChatEnabled) SplitChat318.refresh();
         });
         root.addView(toggle, new LinearLayout.LayoutParams(-1, -2));
+    }
+
+    /** Separator is independent of the row color and uses the BTTV preferences file. */
+    private static void addSeparatorMode(Activity activity, LinearLayout root) {
+        final String[] values = {"none", "subtle", "strong"};
+        final String[] labels = {"None", "Subtle (1 dp)", "Strong (2 dp)"};
+        TextView choice = new TextView(activity);
+        choice.setTextSize(16);
+        choice.setTextColor(FOREGROUND);
+        choice.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        choice.setMinHeight(dp(activity, 54));
+        int initial = separatorIndex(UserPreferences.getString(
+                activity, SplitChat318.SEPARATOR_PREF, "none"), values);
+        choice.setText("Chat row separator: " + labels[initial]);
+        choice.setOnClickListener(view -> {
+            int selected = separatorIndex(UserPreferences.getString(
+                    activity, SplitChat318.SEPARATOR_PREF, "none"), values);
+            new AlertDialog.Builder(activity)
+                    .setTitle("Split chat separator")
+                    .setSingleChoiceItems(labels, selected, (dialog, index) -> {
+                        UserPreferences.setString(activity, SplitChat318.SEPARATOR_PREF, values[index]);
+                        choice.setText("Chat row separator: " + labels[index]);
+                        SplitChat318.refresh();
+                        Log.i(TAG, "Changed split chat separator to " + values[index]);
+                        dialog.dismiss();
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+        });
+        root.addView(choice, new LinearLayout.LayoutParams(-1, -2));
+    }
+
+    private static int separatorIndex(String selected, String[] values) {
+        for (int i = 0; i < values.length; i++) {
+            if (values[i].equals(selected)) return i;
+        }
+        return 0;
     }
 
     private static void addGifMode(Activity activity, LinearLayout root) {

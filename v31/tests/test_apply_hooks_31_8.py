@@ -45,6 +45,28 @@ FIXTURES = {
         '    .line 28\n    .line 29\n'
         '    iget-object v7, p0, Lk76;->h:Ltv/twitch/android/core/mvp/viewdelegate/EventDispatcher;\n'
         '    return-void\n.end method\n'),
+    'smali_classes2/ic9.smali': (
+        '.method public final D2(Lvb9;)Ltb9;\n    .locals 13\n'
+        '    :cond_1\n    iget-boolean p0, p0, Lic9;->p:Z\n'
+        '    :cond_3\n    new-instance v0, Lrb9;\n'
+        '    return-object v0\n.end method\n'),
+    'smali_classes3/p040.smali': (
+        '.method public final getSize(Landroid/graphics/Paint;Ljava/lang/CharSequence;IILandroid/graphics/Paint$FontMetricsInt;)I\n'
+        '    .locals 0\n'
+        '    iget p0, p0, Lp040;->a:I\n\n'
+        '    .line 19\n    .line 20\n    return p0\n.end method\n'),
+    'smali_classes3/d240.smali': (
+        '.method public static m(Landroid/text/Layout;Landroid/text/Spanned;IIFLa240;)I\n'
+        '    .locals 8\n'
+        '    aget-object p3, p3, v2\n\n'
+        '    .line 35\n    .line 36\n'
+        '    invoke-interface {p1, p3}, Landroid/text/Spanned;->getSpanStart(Ljava/lang/Object;)I\n'
+        '    move-result p1\n'
+        '    iget p2, p3, Lp040;->a:I\n'
+        '    return p2\n.end method\n'),
+    'smali_classes3/com/facebook/react/fabric/mounting/SurfaceMountingManager.smali': (
+        '.method public final updateLayout(IIIIIIII)V\n    .locals 6\n'
+        '    return-void\n.end method\n'),
     'smali_classes3/fy90.smali': (
         '.method public final n(Lnpw;Ljava/lang/String;)V\n    .locals 3\n'
         '    return-void\n.end method\n'),
@@ -52,6 +74,13 @@ FIXTURES = {
         '.method public sendRequest(Ljava/lang/String;Ljava/lang/String;D'
         'Lcom/facebook/react/bridge/ReadableArray;Lcom/facebook/react/bridge/ReadableMap;'
         'Ljava/lang/String;ZDZ)V\n    .locals 1\n'
+        '    return-void\n.end method\n'),
+    'smali_classes3/com/facebook/react/uimanager/BaseViewManager.smali': (
+        '.method public setTestId(Landroid/view/View;Ljava/lang/String;)V\n'
+        '    .locals 0\n'
+        '    const p0, 0x7f0b10ab\n'
+        '    invoke-virtual {p1, p0, p2}, Landroid/view/View;->setTag(ILjava/lang/Object;)V\n'
+        '    invoke-virtual {p1, p2}, Landroid/view/View;->setTag(Ljava/lang/Object;)V\n'
         '    return-void\n.end method\n'),
     'smali_classes3/com/facebook/react/views/image/ReactImageManager.smali': (
         '.method public setSource(Landroid/view/View;Lcom/facebook/react/bridge/ReadableArray;)V\n'
@@ -105,13 +134,13 @@ class Tests(unittest.TestCase):
         self.temp.cleanup()
 
     def test_check_only_is_atomic(self):
-        self.assertEqual(len(port.apply(self.root, check=True)), 15)
+        self.assertEqual(len(port.apply(self.root, check=True)), 19)
         for rel, contents in FIXTURES.items():
             self.assertEqual(contents, (self.root / rel).read_text())
         self.assertFalse((self.root / 'smali_classes6/bttv/compat/SettingsClick318.smali').exists())
 
-    def test_all_15_targets(self):
-        self.assertEqual(len(port.apply(self.root)), 15)
+    def test_all_19_targets(self):
+        self.assertEqual(len(port.apply(self.root)), 19)
         self.assertIn('Lilj;->m(Ljava/lang/String;',
                       (self.root / 'smali_classes4/ilj.smali').read_text())
         self.assertIn('Lrq0;->b:Licf;', (self.root / 'smali_classes4/ilj.smali').read_text())
@@ -131,6 +160,37 @@ class Tests(unittest.TestCase):
                       (self.root / 'smali_classes6/bttv/compat/SettingsClick318.smali').read_text())
         self.assertIn('versionLabel', (self.root / 'smali_classes6/l7m.smali').read_text())
         self.assertIn('shouldShow', (self.root / 'smali_classes2/k76.smali').read_text())
+        # The 31.8 React Native popup does not use the old native ic9 presenter.
+        self.assertEqual(FIXTURES['smali_classes2/ic9.smali'],
+                         (self.root / 'smali_classes2/ic9.smali').read_text())
+        self.assertIn('inlineViewWidth', (self.root / 'smali_classes3/p040.smali').read_text())
+        self.assertIn('inlineViewWidth', (self.root / 'smali_classes3/d240.smali').read_text())
+        self.assertIn('layoutWidth', (self.root / 'smali_classes3/com/facebook/react/fabric/mounting/SurfaceMountingManager.smali').read_text())
+        self.assertIn('onImageViewSource', (self.root / 'smali_classes3/com/facebook/react/views/image/ReactImageManager.smali').read_text())
+
+
+    def test_split_chat_hook_is_on_real_RN_test_id_only(self):
+        port.apply(self.root)
+        p = self.root / 'smali_classes3/com/facebook/react/uimanager/BaseViewManager.smali'
+        smali = p.read_text()
+        self.assertEqual(smali.count('SplitChat318;->onTestId'), 1)
+        self.assertIn('invoke-static {p1, p2}', smali)
+        self.assertIn('invoke-virtual {p1, p2}, Landroid/view/View;->setTag', smali)
+
+    def test_missing_split_chat_test_id_anchor_is_atomic(self):
+        p = self.root / 'smali_classes3/com/facebook/react/uimanager/BaseViewManager.smali'
+        p.write_text(p.read_text().replace('setTag(Ljava/lang/Object;)', 'missingTag(Ljava/lang/Object;)'))
+        with self.assertRaises(port.PatchError):
+            port.apply(self.root)
+        self.assertEqual(FIXTURES['smali_classes3/fy90.smali'],
+                         (self.root / 'smali_classes3/fy90.smali').read_text())
+
+    def test_missing_replacement_span_fails_atomically(self):
+        p = self.root / 'smali_classes3/p040.smali'
+        p.write_text(p.read_text().replace('getSize(', 'notGetSize('))
+        with self.assertRaises(port.PatchError): port.apply(self.root)
+        self.assertEqual(FIXTURES['smali_classes3/fy90.smali'],
+                         (self.root / 'smali_classes3/fy90.smali').read_text())
 
     def test_missing_real_settings_host_context_fails_atomically(self):
         path = self.root / 'smali_classes2/tv/twitch/android/settings/main/MainSettingsFragmentV2.smali'
@@ -196,7 +256,7 @@ class Tests(unittest.TestCase):
         self.assertIn('ChatTimestamps.rewriteFrame(IrcEmotes.rewriteFrame(text))', hooks)
         self.assertIn('Settings.AlwaysShowChatTimestamps', timestamp)
         self.assertIn('Settings.AlwaysShowChatTimestamps', overlay)
-        self.assertIn('styleText(CharSequence text)', timestamp)
+        self.assertIn('styleText(CharSequence unused)', timestamp)
         self.assertNotIn('reactTextGetText', timestamp)
         self.assertIn('public static void open(Context context)', overlay)
         self.assertIn('public static void rememberContext(Context context)', overlay)

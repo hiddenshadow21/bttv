@@ -90,7 +90,9 @@ def image_manager(text: str) -> str:
     anchor = ('    .annotation runtime Lcom/facebook/react/uimanager/annotations/ReactProp;\n'
               '        name = "source"\n'
               '    .end annotation\n\n')
-    snippet = ('    # BTTV 31.8: rewrite emote image sources copy-on-write\n'
+    snippet = ('    # BTTV 31.8: capture original wide-emote IDs before URL translation\n'
+               '    invoke-static {p1, p2}, Lbttv/api/Hooks;->onImageViewSource(Ljava/lang/Object;Ljava/lang/Object;)V\n'
+               '    # BTTV 31.8: rewrite emote image sources copy-on-write\n'
                '    invoke-static {p2}, Lbttv/api/Hooks;->rewriteReactSources(Ljava/lang/Object;)Ljava/lang/Object;\n'
                '    move-result-object p2\n'
                '    check-cast p2, Lcom/facebook/react/bridge/ReadableArray;\n\n')
@@ -320,6 +322,70 @@ def timestamp_native(text: str) -> str:
         '    invoke-static {v6}, Lbttv/ChatTimestamps;->shouldShow(Z)Z\n'
         '    move-result v6\n', 'Twitch live chat timestamp')
 
+
+
+def wide_span_width(text: str) -> str:
+    """React Native ReplacementSpan.getSize is the real inline width measure."""
+    signature = '.method public final getSize(Landroid/graphics/Paint;Ljava/lang/CharSequence;IILandroid/graphics/Paint$FontMetricsInt;)I\n'
+    anchor = ('    iget p0, p0, Lp040;->a:I\n\n'
+              '    .line 19\n    .line 20\n    return p0\n')
+    replacement = ('    iget p0, p0, Lp040;->a:I\n\n'
+                   '    # BTTV: reserve the full width of wide emotes (marker follows span)\n'
+                   '    invoke-static {p2, p4, p0}, Lbttv/api/Hooks;->inlineViewWidth(Ljava/lang/CharSequence;II)I\n'
+                   '    move-result p0\n    return p0\n')
+    return change_method(text, signature,
+        lambda body: replace_once(body, anchor, replacement, 'RN inline replacement span'),
+        'RN inline replacement span')
+
+
+def wide_text_layout(text: str) -> str:
+    """Ensure RN inline placements use the same expanded span size as measurement."""
+    signature = '.method public static m(Landroid/text/Layout;Landroid/text/Spanned;IIFLa240;)I\n'
+    anchor = ('    aget-object p3, p3, v2\n\n'
+              '    .line 35\n    .line 36\n'
+              '    invoke-interface {p1, p3}, Landroid/text/Spanned;->getSpanStart(Ljava/lang/Object;)I\n')
+    replacement = ('    aget-object p3, p3, v2\n\n'
+                   '    # BTTV: derive expanded inline emote width from original span and markers\n'
+                   '    invoke-interface {p1, p3}, Landroid/text/Spanned;->getSpanEnd(Ljava/lang/Object;)I\n'
+                   '    move-result v7\n'
+                   '    iget v6, p3, Lp040;->a:I\n'
+                   '    invoke-static {p1, v7, v6}, Lbttv/api/Hooks;->inlineViewWidth(Ljava/lang/CharSequence;II)I\n'
+                   '    move-result v7\n'
+                   '    invoke-interface {p1, p3}, Landroid/text/Spanned;->getSpanStart(Ljava/lang/Object;)I\n')
+    def patch(body):
+        if '    .locals 8\n' not in body: raise PatchError('RN layout m(): register layout changed')
+        body = replace_once(body, anchor, replacement, 'RN placement width preparation')
+        return replace_once(body, '    iget p2, p3, Lp040;->a:I\n',
+                            '    # BTTV: match original measurement expansion\n    move p2, v7\n',
+                            'RN placement width')
+    return change_method(text, signature, patch, 'RN inline placement')
+
+
+def wide_fabric_layout(text: str) -> str:
+    signature = '.method public final updateLayout(IIIIIIII)V\n    .locals 6\n'
+    replacement = (signature +
+        '\n    # BTTV 31.8: expand chat emote image view to match the inline slot\n'
+        '    invoke-static {p0, p1, p5, p6}, Lbttv/api/Hooks;->layoutWidth(Ljava/lang/Object;III)I\n'
+        '    move-result p5\n')
+    return replace_once(text, signature, replacement, 'Fabric image layout')
+
+
+
+def react_chat_row_test_id(text: str) -> str:
+    """Mark RN chat row views at the verified 31.8 BaseViewManager testID hook.
+
+    Hermes ChatMessageRowComponent assigns testID='chat-message-row'.
+    Invoke the Java helper only after RN has assigned the View tag.
+    """
+    signature = '.method public setTestId(Landroid/view/View;Ljava/lang/String;)V\n'
+    anchor = '    invoke-virtual {p1, p2}, Landroid/view/View;->setTag(Ljava/lang/Object;)V\n'
+    replacement = (anchor +
+        '    # BTTV 31.8: apply split chat only to RN chat-message-row views\n'
+        '    invoke-static {p1, p2}, Lbttv/SplitChat318;->onTestId(Landroid/view/View;Ljava/lang/String;)V\n')
+    return change_method(text, signature,
+        lambda body: replace_once(body, anchor, replacement, 'RN chat row testID'),
+        'RN chat row testID')
+
 TARGETS = (
     ('tv/twitch/android/app/consumer/TwitchApplication.smali', app),
     ('tv/twitch/android/settings/main/MainSettingsFragmentV2.smali', settings_fragment_context),
@@ -329,6 +395,10 @@ TARGETS = (
     ('fy90.smali', websocket),
     ('com/facebook/react/modules/network/NetworkingModule.smali', network),
     ('com/facebook/react/views/image/ReactImageManager.smali', image_manager),
+    ('com/facebook/react/uimanager/BaseViewManager.smali', react_chat_row_test_id),
+    ('p040.smali', wide_span_width),
+    ('d240.smali', wide_text_layout),
+    ('com/facebook/react/fabric/mounting/SurfaceMountingManager.smali', wide_fabric_layout),
     ('com/twitchrn/emoteinput/TwitchEmoteInputView$EmoteSpanTarget.smali', input_target),
     ('com/twitchrn/emoteinput/EmoteImageLoader.smali', input_loader),
     ('com/twitchrn/emoteinput/EmoteImageSpan.smali', input_span),

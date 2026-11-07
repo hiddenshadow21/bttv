@@ -57,9 +57,12 @@ public class Hooks {
             if (text == null) {
                 return null;
             }
+            bttv.RNChannelPoints318.onReactNativeSocketFrame(text);
             if (text.contains(IrcEmotes.ROOMSTATE)) {
                 IrcEmotes.onRoomState(text);
             }
+            // Keep deleted messages before React Native's IRC parser can remove them.
+            text = bttv.ChatModeration318.filterFrame(text);
             if (!text.contains(" PRIVMSG #")) {
                 return text;
             }
@@ -238,6 +241,7 @@ public class Hooks {
             if (url == null || data == null || !url.contains("gql.twitch.tv")) {
                 return false;
             }
+            bttv.RNChannelPoints318.onReactNativeRequest(method, url, headers);
             final int id = (int) requestId;
             synchronized (bypassedRequests) {
                 if (bypassedRequests.remove(id)) {

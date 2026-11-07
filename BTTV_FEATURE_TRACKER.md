@@ -31,7 +31,7 @@
 | [ ] | EM-08 | Provider enable/disable settings applied to chat and picker | Partial | P1 | Each BTTV/FFZ/7TV toggle immediately affects rendering and picker as intended. |
 | [ ] | EM-09 | Emote insertion into chat input and cursor/selection behavior | Partial | P1 | Picker inserts correct emote text without corrupting chat input. |
 | [ ] | EM-10 | Animated GIF/WebP emotes and render modes | Partial | P2 | Forever/once/static/disabled modes all function; test image loading and memory. |
-| [ ] | EM-11 | Wide emotes | Missing hook | P2 | Wide emotes render at correct dimensions without clipping or shifting text. |
+| [x] | EM-11 | Wide emotes | Working | P2 | Wide emotes render at correct dimensions without clipping or shifting text. |
 | [ ] | EM-12 | Emote colon autocomplete | Missing hook | P2 | Typing `:name` suggests and inserts third-party emotes. |
 | [ ] | EM-13 | Third-party emotes in VOD chat | Missing hook | P2 | VOD/replay chat displays BTTV/FFZ/7TV emotes correctly. |
 | [ ] | EM-14 | Emote details / emote cards | Partial | P2 | Tapping an emote opens appropriate provider details; no broken Twitch native cards. |
@@ -61,7 +61,7 @@
 
 | Done | ID | Feature | State | Priority | Done when / notes |
 | --- | --- | --- | --- | --- | --- |
-| [ ] | ST-01 | Auto-claim bonus channel points | Missing hook | P2 | Bonus appears and is claimed automatically, once per eligible event. |
+| [x] | ST-01 | Auto-claim bonus channel points | Working | P2 | Bonus appears and is claimed automatically, once per eligible event. |
 | [ ] | ST-02 | Sleep timer | Missing hook | P2 | Configurable timer stops playback at expiry, including livestreams. |
 | [ ] | ST-03 | Sleep timer visibility switch | Missing hook | P3 | The control can be shown/hidden and saved according to preference. |
 | [ ] | ST-04 | BTTV shortcuts/toggles in stream settings | Missing hook | P3 | Quick controls appear in the current 31.8.0 stream UI, with working actions. |
