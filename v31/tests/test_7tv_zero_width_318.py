@@ -125,6 +125,8 @@ IRC_STUBS = {
  public static Emote getEmoteById(String id){return null;}
  public static void ensureChannelEmotes(android.content.Context c,int channel){} }
  ''',
+ 'bttv/emote/StackedEmoteDetails.java': '''package bttv.emote;
+ public class StackedEmoteDetails {public static void rememberTwitchEmotes(String s,String tag){}}''',
  'bttv/ZeroWidthIrcTest.java': '''package bttv;
  public class ZeroWidthIrcTest {
  static void yes(boolean x){if(!x)throw new AssertionError();}

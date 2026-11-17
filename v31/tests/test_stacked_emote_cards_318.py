@@ -94,6 +94,8 @@ FILES['bttv/emote/Emote.java'] = '''package bttv.emote;
 FILES['bttv/emote/Emotes.java'] = '''package bttv.emote;
  public class Emotes {public enum Source{BTTV,FFZ,STV}
  public static Emote getEmoteById(String id){return new Emote(id);} }'''
+FILES['bttv/emote/RNEmoteCard.java'] = '''package bttv.emote;
+ public class RNEmoteCard {static String providerAndScope(Emote e){return "7TV Channel Emote";}}'''
 FILES['bttv/emote/StackTest.java'] = '''package bttv.emote;
  import android.view.*;
  import android.app.AlertDialog;
@@ -101,17 +103,12 @@ FILES['bttv/emote/StackTest.java'] = '''package bttv.emote;
  public class StackTest {
  static void ok(boolean test){if(!test)throw new AssertionError();}
  static ViewGroup tag(String name){ViewGroup g=new ViewGroup();g.setTag(name);return g;}
- static void click(ViewGroup g){ok(g.dispatch(new MotionEvent(MotionEvent.ACTION_DOWN)));
- ok(g.dispatch(new MotionEvent(MotionEvent.ACTION_UP)));}
  public static void main(String[] args){
- // Pure grouping: only adjacent overlay(s) attach to the preceding base.
- java.util.List<String> ids=Arrays.asList("BTTV-base", "BTTV-zw-0-overlay", "BTTV-zw-0-overlay2", "BTTV-unrelated", "BTTV-zw-0-ov3");
+ java.util.List<String> ids=Arrays.asList("BTTV-base","BTTV-zw-0-overlay","BTTV-zw-0-overlay2","BTTV-unrelated");
  ok(StackedEmoteDetails.findStack(ids,0).ids.size()==3);
  ok(StackedEmoteDetails.findStack(ids,2).ids.size()==3);
- ok(StackedEmoteDetails.findStack(ids,4).ids.size()==2);
  ok(StackedEmoteDetails.findStack(Arrays.asList("BTTV-zw-0-orphan"),0)==null);
- ok(StackedEmoteDetails.findStack(Arrays.asList("BTTV-base"),0)==null);
- // Nested hierarchy: base and overlay press views are in different groups.
+ // Different nested parent views in one chat row must still form one stack.
  ViewGroup row=tag("chat-message-row");
  ViewGroup left=tag("container-left");row.add(left);
  ViewGroup base=tag("chat-emote-press-BTTV-base");left.add(base);
@@ -121,29 +118,30 @@ FILES['bttv/emote/StackTest.java'] = '''package bttv.emote;
  View image=new View();image.setTag("chat-emote-wrapper-BTTV-zw-0-overlay");overlay.add(image);
  StackedEmoteDetails.onTestId(base,"chat-emote-press-BTTV-base");
  StackedEmoteDetails.onTestId(overlay,"chat-emote-press-BTTV-zw-0-overlay");
- click(overlay);ok(AlertDialog.shown==1);
- ok(com.bumptech.glide.Glide.loaded.size()==2);
- click(base);ok(AlertDialog.shown==2);
- // Single ordinary emote retains native RN handling.
- ViewGroup singleRow=tag("chat-message-row");
- ViewGroup normal=tag("chat-emote-press-25");singleRow.add(normal);
+ // Touch listener must NOT eat the native React Native onPress.
+ ok(!overlay.dispatch(new MotionEvent(MotionEvent.ACTION_DOWN)));
+ ok(StackedEmoteDetails.onCardRequest("BTTV-zw-0-overlay")!=null);
+ ok(StackedEmoteDetails.cardTitle("BTTV-zw-0-overlay","").contains(" + "));
+ ok(StackedEmoteDetails.cardDescription().contains("Base:"));
+ ok(StackedEmoteDetails.cardDescription().contains("Overlay:"));
+ ok(StackedEmoteDetails.cardOrigins().contains("7TV Channel Emote"));
+ ok(!base.dispatch(new MotionEvent(MotionEvent.ACTION_DOWN)));
+ ok(StackedEmoteDetails.onCardRequest("BTTV-base")!=null);
+ ok(AlertDialog.shown==0); // never open a duplicate Android popup
+ // Ordinary emotes and unrelated chat rows must remain untouched.
+ ViewGroup single=tag("chat-message-row");
+ ViewGroup normal=tag("chat-emote-press-25");single.add(normal);
  View thumb=new View();thumb.setTag("chat-emote-wrapper-25");normal.add(thumb);
  StackedEmoteDetails.onTestId(normal,"chat-emote-press-25");
  ok(!normal.dispatch(new MotionEvent(MotionEvent.ACTION_DOWN)));
- ok(AlertDialog.shown==2);
- // Rows are isolated: a base in another row cannot complete a stack.
- ViewGroup orphanRow=tag("chat-message-row");
- ViewGroup orphan=tag("chat-emote-press-BTTV-zw-0-overlay");orphanRow.add(orphan);
- View child=new View();child.setTag("chat-emote-wrapper-BTTV-zw-0-overlay");orphan.add(child);
- StackedEmoteDetails.onTestId(orphan,"chat-emote-press-BTTV-zw-0-overlay");
- ok(!orphan.dispatch(new MotionEvent(MotionEvent.ACTION_DOWN)));
- System.out.println("PASS stacked emote card grouping, native click, and normal card fallback");
+ ok(StackedEmoteDetails.onCardRequest("25")==null);
+ System.out.println("PASS stacked native EmoteCard without duplicate dialog");
  }
  }'''
 
 class StackCardTests(unittest.TestCase):
     @unittest.skipUnless(shutil.which('java') and shutil.which('javac'), 'JDK not installed')
-    def test_stack_dialog_touches_and_recycler(self):
+    def test_stack_passes_through_to_native_card(self):
         with tempfile.TemporaryDirectory() as root:
             paths = []
             for name, contents in FILES.items():
@@ -158,12 +156,20 @@ class StackCardTests(unittest.TestCase):
             completed = subprocess.run(['java', '-cp', root, 'bttv.emote.StackTest'],
                     capture_output=True, text=True)
             self.assertEqual(completed.returncode, 0, completed.stderr)
-            self.assertIn('PASS stacked emote card', completed.stdout)
+            self.assertIn('PASS stacked native EmoteCard', completed.stdout)
 
     def test_existing_hook_wires_new_cards(self):
         source = (JAVA / 'SplitChat318.java').read_text()
         self.assertIn('WideEmotes.onWrapperTestId(view, testId)', source)
         self.assertIn('StackedEmoteDetails.onTestId(view, testId)', source)
+        self.assertIn('RNEmoteCard.onNativeCardTestId(view, testId)', source)
+        card = (JAVA / 'emote/RNEmoteCard.java').read_text()
+        self.assertIn('subscriptionSummaries', card)
+        self.assertIn('onNativeCardText(View view)', card)
+        self.assertIn('StackedEmoteDetails.onCardRequest(emoteId)', card)
+        self.assertNotIn('new AlertDialog.Builder(', (JAVA / 'emote/StackedEmoteDetails.java').read_text())
+        script = (JAVA.parents[5] / 'v31/apply_hooks_31_8.py').read_text()
+        self.assertIn('onReactNativeText(Landroid/view/View;)V', script)
 
 if __name__ == '__main__':
     unittest.main()

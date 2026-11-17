@@ -75,6 +75,7 @@ public final class SplitChat318 {
         // zero-width emotes; Split Chat itself still only styles chat rows.
         bttv.emote.WideEmotes.onWrapperTestId(view, testId);
         bttv.emote.StackedEmoteDetails.onTestId(view, testId);
+        bttv.emote.RNEmoteCard.onNativeCardTestId(view, testId);
         if (!ROW_ID.equals(testId)) {
             Row old = ROWS.remove(view);
             if (old != null) removeDecorations(view, old);

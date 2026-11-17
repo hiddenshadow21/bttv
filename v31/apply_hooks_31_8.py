@@ -254,6 +254,13 @@ def react_text_manager(text: str, name: str) -> str:
         replacement = (anchor +
             '    # BTTV 31.8: style real RN Spannable after text update is decoded\n'
             '    invoke-static {v0}, Lbttv/ChatTimestamps;->styleText(Ljava/lang/CharSequence;)V\n')
+        # Text is assigned later in the same method, after the timestamp hook.
+        # Only named EmoteCard views are touched by this new callback.
+        text_set = '    invoke-virtual {p1, p2}, Lrjw;->setText(Lqjw;)V\n'
+        card_set = (text_set +
+            '    # BTTV 31.8: correct native EmoteCard provider/type labels\n'
+            '    invoke-static {p1}, Lbttv/api/Hooks;->onReactNativeText(Landroid/view/View;)V\n')
+
     elif name.endswith('/PreparedLayoutTextViewManager.smali'):
         signature = ('.method public updateExtraData('
                      'Lcom/facebook/react/views/text/PreparedLayoutTextView;Ljava/lang/Object;)V\n')
@@ -266,9 +273,12 @@ def react_text_manager(text: str, name: str) -> str:
             '    invoke-static {v1}, Lbttv/ChatTimestamps;->styleText(Ljava/lang/CharSequence;)V\n')
     else:
         raise PatchError(f'Unexpected React text manager: {name}')
-    return change_method(text, signature,
-        lambda body: replace_once(body, anchor, replacement, name + ' text payload'),
-        name + ' text payload')
+    def patch(body):
+        body = replace_once(body, anchor, replacement, name + ' text payload')
+        if name.endswith('/ReactTextViewManager.smali'):
+            body = replace_once(body, text_set, card_set, name + ' native emote-card text')
+        return body
+    return change_method(text, signature, patch, name + ' text payload')
 
 
 def locate_react_text_updates(work: Path) -> list:

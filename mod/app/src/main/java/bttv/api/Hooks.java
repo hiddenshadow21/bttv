@@ -291,6 +291,15 @@ public class Hooks {
         }
     }
 
+    /** Native ReactTextViewManager receives EmoteCard labels here. */
+    public static void onReactNativeText(android.view.View view) {
+        try {
+            RNEmoteCard.onNativeCardText(view);
+        } catch (Throwable t) {
+            Log.e(TAG, "onReactNativeText: ", t);
+        }
+    }
+
     /**
      * @param text text an inline view is part of
      * @param end index behind the inline view
