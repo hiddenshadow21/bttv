@@ -71,6 +71,10 @@ public final class SplitChat318 {
             MAIN.post(() -> onTestId(view, testId));
             return;
         }
+        // The same verified RN testID hook also identifies the wrappers for
+        // zero-width emotes; Split Chat itself still only styles chat rows.
+        bttv.emote.WideEmotes.onWrapperTestId(view, testId);
+        bttv.emote.StackedEmoteDetails.onTestId(view, testId);
         if (!ROW_ID.equals(testId)) {
             Row old = ROWS.remove(view);
             if (old != null) removeDecorations(view, old);

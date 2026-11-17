@@ -249,6 +249,7 @@ public class Hooks {
                 }
             }
             String body = RNNetwork.readBody(data);
+            RNEmoteMenu.observeChannelQuery(body);
             if (RNEmoteCard.intercept(module, url, id, body)) {
                 return true;
             }

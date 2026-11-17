@@ -100,11 +100,12 @@ public class RNEmoteMenu {
                 channel = Data.currentBroadcasterId;
             }
         }
+        // The request can outlive the stream that opened the picker. Do not
+        // publish a captured broadcaster into the foreground channel here:
+        // doing so lets a minimized stream steal the current chat context.
+        int activeAtRequest = Data.currentBroadcasterId;
         if (channel > 0) {
-            if (channel != Data.currentBroadcasterId) Data.setCurrentBroadcasterId(channel);
             Emotes.ensureChannelEmotes(Data.ctx, channel);
-        } else {
-            Log.w(TAG, "Picker request has no channel ID; displaying global emotes only");
         }
 
         // the real request
@@ -146,23 +147,80 @@ public class RNEmoteMenu {
             connection.disconnect();
         }
 
-        waitForEmotes(channel);
+        // ChatEmoteSets is account-scoped; its provider additions are NOT.
+        // If a foreground broadcaster changed during the asynchronous HTTP
+        // round trip, the response must use the *new* channel's catalogs.
+        int activeAtResponse = Data.currentBroadcasterId;
+        int renderedChannel = PickerChannelContext318.select(
+                channel, channelFromRequest, activeAtRequest, activeAtResponse);
+        if (renderedChannel > 0) {
+            Emotes.ensureChannelEmotes(Data.ctx, renderedChannel);
+            waitForEmotes(renderedChannel);
+        }
 
         String newBody = responseBody;
         try {
-            JSONArray responses = isBatch ? new JSONArray(responseBody) : new JSONArray().put(new JSONObject(responseBody));
-            JSONObject currentUser = responses.getJSONObject(emoteSetsIndex).getJSONObject("data").getJSONObject("currentUser");
-            JSONArray emoteSets = currentUser.getJSONArray("emoteSets");
-            int added = addEmoteSets(emoteSets, channel);
-            newBody = isBatch ? responses.toString() : responses.getJSONObject(0).toString();
-            Log.d(TAG, "proxy: added " + added + " emotes for channel " + channel + " (current " + Data.currentBroadcasterId
-                    + ", from request " + channelFromRequest + ") to request " + requestId);
+            newBody = withEmotesForChannel(responseBody, isBatch, emoteSetsIndex, renderedChannel);
+            int latest = Data.currentBroadcasterId;
+            if (PickerChannelContext318.stale(renderedChannel, latest)) {
+                Log.i(TAG, "Picker channel moved during response processing: " + renderedChannel + " -> " + latest);
+                Emotes.ensureChannelEmotes(Data.ctx, latest);
+                waitForEmotes(latest);
+                renderedChannel = latest;
+                // Always build afresh from Twitch's unmodified response.
+                newBody = withEmotesForChannel(responseBody, isBatch, emoteSetsIndex, renderedChannel);
+            }
+            int finalActive = Data.currentBroadcasterId;
+            if (PickerChannelContext318.stale(renderedChannel, finalActive)) {
+                // Don't expose a wrong-channel catalog after a third rapid switch.
+                // Global emotes are still safe to add.
+                Log.w(TAG, "Picker switched again; emitting global emotes only");
+                renderedChannel = -1;
+                newBody = withEmotesForChannel(responseBody, isBatch, emoteSetsIndex, -1);
+            }
+            Log.d(TAG, "proxy: response channel " + renderedChannel + " (request channel " + channel
+                    + ", active " + Data.currentBroadcasterId + ", explicit " + channelFromRequest
+                    + ") request=" + requestId);
         } catch (Throwable t) {
-            // still a valid answer
-            Log.e(TAG, "proxy: could not add emote sets: ", t);
+            Log.e(TAG, "proxy: could not add emote sets; returning native response", t);
+            newBody = responseBody;
         }
 
         RNNetwork.emitResponse(module, requestId, status, responseHeaders, url, newBody);
+    }
+
+    private static String withEmotesForChannel(String original, boolean isBatch,
+                                               int emoteSetsIndex, int channel) throws Exception {
+        JSONArray responses = isBatch ? new JSONArray(original)
+                : new JSONArray().put(new JSONObject(original));
+        JSONObject currentUser = responses.getJSONObject(emoteSetsIndex)
+                .getJSONObject("data").getJSONObject("currentUser");
+        JSONArray emoteSets = currentUser.getJSONArray("emoteSets");
+        int added = addEmoteSets(emoteSets, channel);
+        Log.d(TAG, "Added " + added + " picker emotes for channel " + channel);
+        return isBatch ? responses.toString() : responses.getJSONObject(0).toString();
+    }
+
+    /** Track channel context from a separate channel-locked emote query.
+     * Twitch 31.8.0 does not batch it with ChatEmoteSets, so a picker opened
+     * immediately after switching streams can otherwise use the last channel.
+     */
+    public static void observeChannelQuery(String body) {
+        if (body == null || !body.contains("ChatChannelLockedEmotes")) return;
+        try {
+            JSONArray operations = body.trim().startsWith("[")
+                    ? new JSONArray(body) : new JSONArray().put(new JSONObject(body));
+            for (int i = 0; i < operations.length(); i++) {
+                JSONObject operation = operations.optJSONObject(i);
+                if (operation == null || !CHANNEL_OPERATION.equals(operation.optString("operationName"))) continue;
+                int channel = channelIdFromVariables(operation.optJSONObject("variables"));
+                if (channel > 0 && channel != Data.currentBroadcasterId) {
+                    Data.setCurrentBroadcasterId(channel);
+                }
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "Could not read channel-locked emote query", t);
+        }
     }
 
     private static int channelIdFromVariables(JSONObject variables) {
@@ -184,11 +242,16 @@ public class RNEmoteMenu {
     private static void waitForEmotes(int channel) throws InterruptedException {
         long end = System.currentTimeMillis() + WAIT_FOR_EMOTES_MS;
         while (System.currentTimeMillis() < end) {
-            boolean globals = !Emotes.globalEmotesBTTV.isEmpty();
+            boolean globals = (!EmoteSettings.bttvEnabled() || !Emotes.globalEmotesBTTV.isEmpty()
+                    || Network.isChannelRequestFinished(Emotes.Source.BTTV, -2))
+                    && (!EmoteSettings.ffzEnabled() || !Emotes.globalEmotesFFZ.isEmpty()
+                    || Network.isChannelRequestFinished(Emotes.Source.FFZ, -2))
+                    && (!EmoteSettings.stvEnabled() || !Emotes.globalEmotes7TV.isEmpty()
+                    || Network.isChannelRequestFinished(Emotes.Source.STV, -2));
             boolean channelLoaded = channel <= 0
-                    || (isLoaded(Emotes.Source.BTTV, Emotes.channelEmotesBTTV, channel)
-                    && isLoaded(Emotes.Source.FFZ, Emotes.channelEmotesFFZ, channel)
-                    && isLoaded(Emotes.Source.STV, Emotes.channelEmotes7TV, channel));
+                    || ((!EmoteSettings.bttvEnabled() || isLoaded(Emotes.Source.BTTV, Emotes.channelEmotesBTTV, channel))
+                    && (!EmoteSettings.ffzEnabled() || isLoaded(Emotes.Source.FFZ, Emotes.channelEmotesFFZ, channel))
+                    && (!EmoteSettings.stvEnabled() || isLoaded(Emotes.Source.STV, Emotes.channelEmotes7TV, channel)));
             if (globals && channelLoaded) {
                 return;
             }
@@ -221,8 +284,17 @@ public class RNEmoteMenu {
                 setTemplate = set;
             }
         }
-        if (setTemplate == null || emoteTemplate == null) {
-            throw new IllegalStateException("no templates");
+        if (setTemplate == null) {
+            // A new Twitch account may have no native emote sets at all.
+            // Do not hide BTTV/FFZ/7TV just because there is no template.
+            setTemplate = new JSONObject()
+                    .put("id", "").put("emotes", new JSONArray());
+        }
+        if (emoteTemplate == null) {
+            emoteTemplate = new JSONObject()
+                    .put("id", "").put("setID", "").put("token", "")
+                    .put("type", EMOTE_TYPE).put("assetType", "STATIC")
+                    .put("modifiers", JSONObject.NULL);
         }
         if (ownerTemplate == null) {
             // without an owner the menu lists our sets under the global Twitch emotes
@@ -273,10 +345,12 @@ public class RNEmoteMenu {
         if (channelCodes == null) {
             return emotes;
         }
-        for (String code : new ArrayList<>(channelCodes)) {
-            Emote emote = Emotes.getEmote(channel, code);
-            if (emote != null && emote.source == source
-                    && (EmoteSettings.gifEnabled() || !"gif".equals(emote.imageType))) {
+        ArrayList<String> sortedCodes = new ArrayList<>(channelCodes);
+        java.util.Collections.sort(sortedCodes, String.CASE_INSENSITIVE_ORDER);
+        for (String code : sortedCodes) {
+            Emote emote = Emotes.getChannelEmote(source, channel, code);
+            if (emote != null
+                    && (EmoteSettings.gifEnabled() || !emote.isAnimated())) {
                 emotes.put(emote.id, emote);
             }
         }
@@ -285,8 +359,10 @@ public class RNEmoteMenu {
 
     private static Map<String, Emote> globalEmotes(Collection<Emote> globals) {
         Map<String, Emote> emotes = new LinkedHashMap<>();
-        for (Emote emote : new ArrayList<>(globals)) {
-            if (EmoteSettings.gifEnabled() || !"gif".equals(emote.imageType)) {
+        ArrayList<Emote> sorted = new ArrayList<>(globals);
+        java.util.Collections.sort(sorted, (left, right) -> left.code.compareToIgnoreCase(right.code));
+        for (Emote emote : sorted) {
+            if (EmoteSettings.gifEnabled() || !emote.isAnimated()) {
                 emotes.put(emote.id, emote);
             }
         }
@@ -306,7 +382,7 @@ public class RNEmoteMenu {
             emoteJson.put("id", "BTTV-" + emote.id);
             emoteJson.put("setID", setId);
             emoteJson.put("token", emote.code);
-            emoteJson.put("assetType", "gif".equals(emote.imageType) ? "ANIMATED" : "STATIC");
+            emoteJson.put("assetType", emote.isAnimated() ? "ANIMATED" : "STATIC");
             // the order of the sets Twitch sends changes with every request, the template may be any emote.
             // The menu groups emotes of the type GLOBALS (and some others) on its own, ignoring the owner of their set,
             // MEGA_COMMERCE emotes are listed under the owner of their set

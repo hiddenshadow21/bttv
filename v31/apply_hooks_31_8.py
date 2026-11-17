@@ -386,6 +386,82 @@ def react_chat_row_test_id(text: str) -> str:
         lambda body: replace_once(body, anchor, replacement, 'RN chat row testID'),
         'RN chat row testID')
 
+def classic_native_chat(text: str) -> str:
+    """31.8.0 native RecyclerView message viewholder, confirmed by UI dump.
+
+    chat_message_item=0x7f0b0478 belongs to sb6.A / k7d.C, where
+    k7d.C renders the final Spanned in v3. Never hook global TextView.setText.
+    """
+    if 'Lbttv/VerticalChat318;->onClassicTextBound' in text:
+        raise PatchError('native Classic chat message bind: already patched')
+    signature = '.method public final C(Ljwp;Z)V\n'
+    anchor = ('    invoke-virtual {v3, v5, v2}, Landroid/widget/TextView;'
+              '->setText(Ljava/lang/CharSequence;Landroid/widget/TextView$BufferType;)V\n')
+    new = (anchor +
+           '    # BTTV 31.8: native Classic theatre RecyclerView emotes\n'
+           '    invoke-static {v3}, Lbttv/VerticalChat318;->onClassicTextBound(Landroid/widget/TextView;)V\n')
+    return change_method(text, signature,
+        lambda body: replace_once(body, anchor, new, 'native Classic chat message bind'),
+        'native Classic chat message bind')
+
+
+def classic_native_theatre(text: str) -> str:
+    """Native Classic theatre's visible fragment supplies the live channel."""
+    if 'Lbttv/VerticalChat318;->onClassicTheatre' in text:
+        raise PatchError('native Classic theatre channel: already patched')
+    signature = '.method public onViewCreated(Landroid/view/View;Landroid/os/Bundle;)V\n'
+    anchor = ('    invoke-super {p0, p1, p2}, Landroidx/fragment/app/m;'
+              '->onViewCreated(Landroid/view/View;Landroid/os/Bundle;)V\n')
+    new = (anchor +
+           '    # BTTV 31.8: native Classic theatre channel on foreground entry\n'
+           '    invoke-static {p0}, Lbttv/VerticalChat318;->onClassicTheatre(Ljava/lang/Object;)V\n')
+    return change_method(text, signature,
+        lambda body: replace_once(body, anchor, new, 'native Classic theatre channel'),
+        'native Classic theatre channel')
+
+
+def vertical_native_channel(text: str) -> str:
+    """Initialize the native VerticalTheatreOneChatFragment's broadcaster ID."""
+    signature = '.method public final onCreate(Landroid/os/Bundle;)V\n'
+    pattern = re.compile(
+        r'(    invoke-virtual \{v0\}, Ltv/twitch/android/shared/one/chat/'
+        r'VerticalTheatreOneChatFragment\$Arguments;->getChannel\(\)'
+        r'Ltv/twitch/android/models/channel/ChannelInfo;\n'
+        r'(?:\s*\.line [0-9]+\n)*'
+        r'    move-result-object v0\n)')
+    def patch(body):
+        if 'Lbttv/VerticalChat318;->onChannel' in body:
+            raise PatchError('vertical OneChat channel: already patched')
+        matches = list(pattern.finditer(body))
+        if len(matches) != 1:
+            raise PatchError(f'vertical OneChat channel: expected one channel argument, got {len(matches)}')
+        position = matches[0].end()
+        return body[:position] + (
+            '    # BTTV 31.8: set native vertical OneChat channel context\n'
+            '    invoke-static {v0}, Lbttv/VerticalChat318;->onChannel(Ljava/lang/Object;)V\n'
+        ) + body[position:]
+    return change_method(text, signature, patch, 'vertical OneChat channel')
+
+
+def vertical_native_chat(text: str) -> str:
+    """VerticalTheatreOneChatFragment binds through native q5s, not RN/Fabric.
+
+    Only the exact 31.8.0 OneChat TextView binding is patched. Do not hook
+    Android's global TextView.setText or modify unrelated settings screens.
+    """
+    if 'Lbttv/VerticalChat318;->onTextBound' in text:
+        raise PatchError('native vertical OneChat text: already patched')
+    signature = '.method public final x(Lo5s;)V\n'
+    anchor = ('    invoke-virtual {v3, v7}, Landroid/widget/TextView;'
+              '->setText(Ljava/lang/CharSequence;)V\n')
+    replacement = (anchor +
+        '    # BTTV 31.8: native vertical theatre OneChat emotes and split styling\n'
+        '    invoke-static {v3}, Lbttv/VerticalChat318;->onTextBound(Landroid/widget/TextView;)V\n')
+    return change_method(text, signature,
+        lambda body: replace_once(body, anchor, replacement, 'native vertical OneChat text'),
+        'native vertical OneChat text')
+
+
 TARGETS = (
     ('tv/twitch/android/app/consumer/TwitchApplication.smali', app),
     ('tv/twitch/android/settings/main/MainSettingsFragmentV2.smali', settings_fragment_context),
@@ -396,6 +472,10 @@ TARGETS = (
     ('com/facebook/react/modules/network/NetworkingModule.smali', network),
     ('com/facebook/react/views/image/ReactImageManager.smali', image_manager),
     ('com/facebook/react/uimanager/BaseViewManager.smali', react_chat_row_test_id),
+    ('k7d.smali', classic_native_chat),
+    ('tv/twitch/android/feature/theatre/TheatreModeFragment.smali', classic_native_theatre),
+    ('q5s.smali', vertical_native_chat),
+    ('tv/twitch/android/shared/one/chat/VerticalTheatreOneChatFragment.smali', vertical_native_channel),
     ('p040.smali', wide_span_width),
     ('d240.smali', wide_text_layout),
     ('com/facebook/react/fabric/mounting/SurfaceMountingManager.smali', wide_fabric_layout),

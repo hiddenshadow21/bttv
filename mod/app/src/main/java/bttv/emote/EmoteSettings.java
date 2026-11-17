@@ -46,15 +46,26 @@ public class EmoteSettings {
         }
     }
 
-    public static boolean gifEnabled() {
-        if (settingsBroken) {
-            return true;
-        }
+    public enum AnimationMode { FOREVER, ONCE, STATIC, DISABLED }
+
+    public static AnimationMode animationMode() {
+        if (settingsBroken) return AnimationMode.ONCE;
         try {
-            return !ResUtil.selectedDropdownFromSettingsIs(Settings.GifRenderMode, Res.strings.bttv_settings_gif_render_mode_disabled);
+            if (ResUtil.selectedDropdownFromSettingsIs(Settings.GifRenderMode,
+                    Res.strings.bttv_settings_gif_render_mode_disabled)) return AnimationMode.DISABLED;
+            if (ResUtil.selectedDropdownFromSettingsIs(Settings.GifRenderMode,
+                    Res.strings.bttv_settings_gif_render_mode_static)) return AnimationMode.STATIC;
+            if (ResUtil.selectedDropdownFromSettingsIs(Settings.GifRenderMode,
+                    Res.strings.bttv_settings_gif_render_mode_animate_forever)) return AnimationMode.FOREVER;
+            return AnimationMode.ONCE;
         } catch (Throwable t) {
-            return onBroken(t);
+            onBroken(t);
+            return AnimationMode.ONCE;
         }
+    }
+
+    public static boolean gifEnabled() {
+        return animationMode() != AnimationMode.DISABLED;
     }
 
     private static boolean onBroken(Throwable t) {

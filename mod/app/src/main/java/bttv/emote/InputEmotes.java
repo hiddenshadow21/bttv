@@ -66,6 +66,8 @@ public class InputEmotes {
     private static final Map<String, Emote> emotes = new ConcurrentHashMap<>();
     // still image the input got -> animation drawn in its place
     private static final Map<Bitmap, Drawable> animations = Collections.synchronizedMap(new WeakHashMap<Bitmap, Drawable>());
+    private static final Set<Drawable> playedOnce = Collections.synchronizedSet(
+            Collections.newSetFromMap(new WeakHashMap<Drawable, Boolean>()));
     // only used on the main thread
     private static final Set<View> inputViews = Collections.newSetFromMap(new WeakHashMap<View, Boolean>());
     private static final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -85,6 +87,16 @@ public class InputEmotes {
         }
         emotes.put(emote.url, emote);
         return emote.url;
+    }
+
+    /** Load a third-party emote directly by its provider URL.
+     * Native vertical OneChat has no Twitch-style synthetic image ID, so it
+     * must not manufacture a BTTV-prefixed URL to reach this cache.
+     */
+    public static Bitmap bitmapForEmote(Emote emote) {
+        if (emote == null || emote.url == null || emote.url.isEmpty()) return null;
+        emotes.put(emote.url, emote);
+        return bitmap(emote.url);
     }
 
     private static Float ratio(String url) {
@@ -141,8 +153,10 @@ public class InputEmotes {
                 Log.d(TAG, "bitmap: " + emote.code + " from " + source);
             }
             Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
-            if (bitmap != null && emote.imageType.equals("gif")) {
-                Drawable animation = animation(bytes);
+            EmoteSettings.AnimationMode mode = EmoteSettings.animationMode();
+            if (bitmap != null && emote.isAnimated()
+                    && (mode == EmoteSettings.AnimationMode.FOREVER || mode == EmoteSettings.AnimationMode.ONCE)) {
+                Drawable animation = animation(bytes, mode);
                 if (animation != null) {
                     animations.put(bitmap, animation);
                 }
@@ -154,7 +168,7 @@ public class InputEmotes {
         }
     }
 
-    private static Drawable animation(byte[] bytes) {
+    private static Drawable animation(byte[] bytes, EmoteSettings.AnimationMode mode) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
             return null;
         }
@@ -163,6 +177,9 @@ public class InputEmotes {
             if (!(drawable instanceof AnimatedImageDrawable)) {
                 return null;
             }
+            ((AnimatedImageDrawable) drawable).setRepeatCount(
+                    mode == EmoteSettings.AnimationMode.FOREVER
+                            ? AnimatedImageDrawable.REPEAT_INFINITE : 0);
             drawable.setCallback(ANIMATION_CALLBACK);
             return drawable;
         } catch (Throwable t) {
@@ -177,7 +194,8 @@ public class InputEmotes {
      */
     public static boolean draw(Bitmap bitmap, Canvas canvas, RectF destination, Paint paint) {
         Drawable animation = bitmap == null ? null : animations.get(bitmap);
-        if (animation == null) {
+        if (animation == null || EmoteSettings.animationMode() == EmoteSettings.AnimationMode.STATIC
+                || EmoteSettings.animationMode() == EmoteSettings.AnimationMode.DISABLED) {
             return false;
         }
         animation.setBounds(Math.round(destination.left), Math.round(destination.top),
@@ -185,6 +203,10 @@ public class InputEmotes {
         animation.setAlpha(paint.getAlpha());
         animation.draw(canvas);
         if (!((Animatable) animation).isRunning()) {
+            if (EmoteSettings.animationMode() == EmoteSettings.AnimationMode.ONCE
+                    && !playedOnce.add(animation)) {
+                return true; // never restart a completed single-loop animation
+            }
             ((Animatable) animation).start();
         }
         return true;

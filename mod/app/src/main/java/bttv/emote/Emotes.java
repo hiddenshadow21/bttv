@@ -10,7 +10,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
+import java.util.EnumMap;
+import java.util.Collections;
+import java.util.concurrent.ConcurrentHashMap;
 
 import bttv.Network;
 
@@ -34,20 +36,26 @@ public class Emotes {
         }
     }
 
-    public static Map<String, Emote> globalEmotesBTTV = new HashMap<>();
-    public static Map<String, Emote> globalEmotesFFZ = new HashMap<>();
-    public static Map<String, Emote> globalEmotes7TV = new HashMap<>();
+    public static volatile Map<String, Emote> globalEmotesBTTV = Collections.emptyMap();
+    public static volatile Map<String, Emote> globalEmotesFFZ = Collections.emptyMap();
+    public static volatile Map<String, Emote> globalEmotes7TV = Collections.emptyMap();
 
     // map channel ids to their emote codes
-    public static Map<Integer, Set<String>> channelEmotesBTTV = new HashMap<>();
-    public static Map<Integer, Set<String>> channelEmotesFFZ = new HashMap<>();
-    public static Map<Integer, Set<String>> channelEmotes7TV = new HashMap<>();
-
-    // map emote to their code
-    private static final Map<String, Map<Integer, Emote>> codeEmoteMap = new HashMap<>();
+    public static Map<Integer, Set<String>> channelEmotesBTTV = new ConcurrentHashMap<>();
+    public static Map<Integer, Set<String>> channelEmotesFFZ = new ConcurrentHashMap<>();
+    public static Map<Integer, Set<String>> channelEmotes7TV = new ConcurrentHashMap<>();
 
     // map emote to their id
-    private static final Map<String, Emote> idEmoteMap = new HashMap<>();
+    private static final Map<String, Emote> idEmoteMap = new ConcurrentHashMap<>();
+
+    // The chat uses provider priority for conflicting codes, but each picker
+    // section must show its own emote even if another provider has that code.
+    private static final Map<Source, Map<Integer, Map<String, Emote>>> providerChannels = new EnumMap<>(Source.class);
+    static {
+        for (Source source : Source.values()) {
+            providerChannels.put(source, new ConcurrentHashMap<Integer, Map<String, Emote>>());
+        }
+    }
 
     public static boolean channelHasEmotes(Context context, int channelId) {
 
@@ -75,52 +83,60 @@ public class Emotes {
     }
 
     public static Emote getEmote(Context ctx, String code, int channelId) {
-        boolean bttvEnabled = EmoteSettings.bttvEnabled();
-        boolean gifEnabled = EmoteSettings.gifEnabled();
-        boolean ffzEnabled = EmoteSettings.ffzEnabled();
-        boolean stvEnabled = EmoteSettings.stvEnabled();
-
-        ArrayList<Map<String, Emote>> globals = new ArrayList<>(Arrays.asList(globalEmotesFFZ, globalEmotesBTTV, globalEmotes7TV));
-        ArrayList<Map<Integer, Set<String>>> channels = new ArrayList<>(Arrays.asList(channelEmotesFFZ, channelEmotesBTTV, channelEmotes7TV));
-        ArrayList<Boolean> enabled = new ArrayList<>(Arrays.asList(ffzEnabled, bttvEnabled, stvEnabled));
-
-        for (int i = 0; i < globals.size(); i++) {
-            boolean isEnabled = enabled.get(i);
-            if (!isEnabled) {
-                continue;
-            }
-
-            Map<String, Emote> global = globals.get(i);
-
-            Emote emote = global.get(code);
-            if (emote != null && (!emote.imageType.equals("gif") || gifEnabled)) {
-                return emote;
-            }
-
-            Map<Integer, Set<String>> channel = channels.get(i);
-            Set<String> set = channel.get(channelId);
-            if (set != null && set.contains(code)) {
-                Map<Integer, Emote > channelEmoteMap = codeEmoteMap.get(code);
-                if (channelEmoteMap != null) {
-                    emote = channelEmoteMap.get(channelId);
-                    if (emote != null && (!emote.imageType.equals("gif") || gifEnabled)) {
-                        return emote;
-                    }
-                }
-            }
+        // Channel-specific provider maps prevent a disabled provider's emote
+        // leaking through the priority cache when two providers share a code.
+        for (Source source : new Source[]{Source.FFZ, Source.BTTV, Source.STV}) {
+            if (!sourceEnabled(source)) continue;
+            Emote global = globalFor(source).get(code);
+            if (global != null && usable(global)) return global;
+            Emote channel = getChannelEmote(source, channelId, code);
+            if (channel != null && usable(channel)) return channel;
         }
-
         return null;
     }
 
+    /**
+     * Overlays are a special case of provider precedence. A zero-width 7TV
+     * emote must retain its overlay semantics even if FFZ or BTTV uses the
+     * same code. This lookup is only called immediately after a base emote:
+     * ordinary chat and the provider-specific picker keep their priorities.
+     */
+    public static Emote getZeroWidth7TVEmote(String code, int channelId) {
+        if (!EmoteSettings.stvEnabled()) return null;
+        Emote channel = getChannelEmote(Source.STV, channelId, code);
+        Emote candidate = channel != null ? channel : globalEmotes7TV.get(code);
+        return candidate != null && candidate.zeroWidth && usable(candidate) ? candidate : null;
+    }
+
+    private static boolean sourceEnabled(Source source) {
+        switch (source) {
+            case BTTV: return EmoteSettings.bttvEnabled();
+            case FFZ: return EmoteSettings.ffzEnabled();
+            case STV: return EmoteSettings.stvEnabled();
+            default: return false;
+        }
+    }
+
+    private static boolean usable(Emote emote) {
+        return EmoteSettings.gifEnabled() || !emote.isAnimated();
+    }
+
+    public static Map<String, Emote> globalFor(Source source) {
+        switch (source) {
+            case BTTV: return globalEmotesBTTV;
+            case FFZ: return globalEmotesFFZ;
+            case STV: return globalEmotes7TV;
+            default: return Collections.emptyMap();
+        }
+    }
+
     public static Emote getEmote(int channelId, String code) {
-        Map<Integer, Emote> channelEmoteMap = codeEmoteMap.get(code);
-        if (channelEmoteMap == null)
-            return null;
-        Emote emote = channelEmoteMap.get(channelId);
-        if (emote != null)
-            return emote;
-        return channelEmoteMap.get(0); // global
+        return getEmote(null, code, channelId);
+    }
+
+    public static Emote getChannelEmote(Source source, int channelId, String code) {
+        Map<String, Emote> channel = providerChannels.get(source).get(channelId);
+        return channel == null ? null : channel.get(code);
     }
 
     public static Emote getEmoteById(String id) {
@@ -160,18 +176,18 @@ public class Emotes {
         HashMap<String, Emote> map = new HashMap<>();
         for (Emote emote : emotes) {
             map.put(emote.code, emote);
-            addToCodeEmoteMap(0, emote);
             idEmoteMap.put(emote.id, emote);
         }
+        Map<String, Emote> snapshot = Collections.unmodifiableMap(map);
         switch (source) {
             case BTTV:
-                globalEmotesBTTV = map;
+                globalEmotesBTTV = snapshot;
                 break;
             case FFZ:
-                globalEmotesFFZ = map;
+                globalEmotesFFZ = snapshot;
                 break;
             case STV:
-                globalEmotes7TV = map;
+                globalEmotes7TV = snapshot;
                 break;
             default:
                 Log.e("LBTTVEmotes", "setGlobal: source unknown!", new Exception());
@@ -184,11 +200,11 @@ public class Emotes {
         Set<String> set = new HashSet<>();
         for (Emote emote : emotes) {
             set.add(emote.code);
-            addToCodeEmoteMap(id, emote);
             idEmoteMap.put(emote.id, emote);
         }
 
-        channelEmotesFFZ.put(id, set);
+        putProviderChannel(Source.FFZ, id, emotes);
+        channelEmotesFFZ.put(id, Collections.unmodifiableSet(set));
         Log.i("LBTTVEmotes", "addChannelFFZ: " + set.size() + " emotes for channel " + id);
     }
 
@@ -197,16 +213,17 @@ public class Emotes {
         Set<String> set = new HashSet<>();
         for (Emote emote : chEmData.channelEmotes) {
             set.add(emote.code);
-            addToCodeEmoteMap(id, emote);
             idEmoteMap.put(emote.id, emote);
         }
         for (Emote emote : chEmData.sharedEmotes) {
             set.add(emote.code);
-            addToCodeEmoteMap(id, emote);
             idEmoteMap.put(emote.id, emote);
         }
 
-        channelEmotesBTTV.put(id, set);
+        ArrayList<Emote> all = new ArrayList<>(chEmData.channelEmotes);
+        all.addAll(chEmData.sharedEmotes);
+        putProviderChannel(Source.BTTV, id, all);
+        channelEmotesBTTV.put(id, Collections.unmodifiableSet(set));
         Log.i("LBTTVEmotes", "addChannelBTTV: " + set.size() + " emotes for channel " + id);
     }
 
@@ -215,45 +232,45 @@ public class Emotes {
         Set<String> set = new HashSet<>();
         for (Emote emote : emotes) {
             set.add(emote.code);
-            addToCodeEmoteMap(id, emote);
             idEmoteMap.put(emote.id, emote);
         }
 
-        channelEmotes7TV.put(id, set);
+        putProviderChannel(Source.STV, id, emotes);
+        channelEmotes7TV.put(id, Collections.unmodifiableSet(set));
         Log.i("LBTTVEmotes", "addChannel7TV: " + set.size() + " emotes for channel " + id);
     }
 
 
-    private static void addToCodeEmoteMap(int channelId, Emote emote) {
-        String code = emote.code;
-        Map<Integer, Emote> channelEmoteMap = codeEmoteMap.get(code); // get map channel -> Emote for code
-        if (channelEmoteMap == null) { // if code is not in map (for no channel) create it
-            Map<Integer, Emote> map = new TreeMap<>();
-            map.put(channelId, emote);
-            codeEmoteMap.put(code, map);
-        } else { // if exists for any channel, check if it does for this
-            Emote existing = channelEmoteMap.get(channelId);
-            if (existing == null || existing.source.getPriority() <= emote.source.getPriority()) { // replace if more important
-                channelEmoteMap.put(channelId, emote);
-            }
-        }
+    private static void putProviderChannel(Source source, int channel, List<Emote> emotes) {
+        Map<String, Emote> byCode = new HashMap<>();
+        for (Emote emote : emotes) byCode.put(emote.code, emote);
+        providerChannels.get(source).put(channel, Collections.unmodifiableMap(byCode));
     }
 
     public static ArrayList<String> getAllEmotes(int channelId) {
-        ArrayList<String> keys = new ArrayList<>();
-
-        keys.addAll(globalEmotesFFZ.keySet());
-        keys.addAll(globalEmotesBTTV.keySet());
-        keys.addAll(globalEmotes7TV.keySet());
-
-        Set<String> set;
-        if ((set = channelEmotesFFZ.get(channelId)) != null)
-            keys.addAll(set);
-        if ((set = channelEmotesBTTV.get(channelId)) != null)
-            keys.addAll(set);
-        if ((set = channelEmotes7TV.get(channelId)) != null)
-            keys.addAll(set);
-        return keys;
+        // Autocomplete must not include disabled providers or stale channels.
+        java.util.TreeSet<String> codes = new java.util.TreeSet<>();
+        if (EmoteSettings.ffzEnabled()) {
+            codes.addAll(globalEmotesFFZ.keySet());
+            Set<String> channel = channelEmotesFFZ.get(channelId);
+            if (channel != null) codes.addAll(channel);
+        }
+        if (EmoteSettings.bttvEnabled()) {
+            codes.addAll(globalEmotesBTTV.keySet());
+            Set<String> channel = channelEmotesBTTV.get(channelId);
+            if (channel != null) codes.addAll(channel);
+        }
+        if (EmoteSettings.stvEnabled()) {
+            codes.addAll(globalEmotes7TV.keySet());
+            Set<String> channel = channelEmotes7TV.get(channelId);
+            if (channel != null) codes.addAll(channel);
+        }
+        if (!EmoteSettings.gifEnabled()) {
+            java.util.Iterator<String> cursor = codes.iterator();
+            while (cursor.hasNext()) {
+                if (getEmote(null, cursor.next(), channelId) == null) cursor.remove();
+            }
+        }
+        return new ArrayList<>(codes);
     }
-
 }

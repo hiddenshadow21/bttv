@@ -17,6 +17,12 @@ public class Emote {
     public String code;
     public String url;
     public String imageType;
+    // Animation is independent of container format: some 7TV sets provide
+    // animated WebP when a GIF rendition is absent.
+    public boolean animated;
+    // 7TV: active emote flag 1, or the emote's default flag 256.
+    // Only zero-width when an emote actually follows another emote in chat.
+    public boolean zeroWidth;
     public String owner;
     // width / height, 1 if unknown
     public float aspectRatio = 1f;
@@ -27,6 +33,7 @@ public class Emote {
         this.code = code;
         this.url = url;
         this.imageType = imageType;
+        this.animated = "gif".equalsIgnoreCase(imageType);
         this.owner = owner;
     }
 
@@ -109,22 +116,15 @@ public class Emote {
                         smallerThan64 = name;
                     }
                 }
-                String selected = null;
-                if (geThan64 != null) {
-                    selected = geThan64;
-                } else {
-                    selected = smallerThan64; // if missing, we are f'ed anyway
+                String selected = geThan64 != null ? geThan64 : smallerThan64;
+                if (selected == null) {
+                    throw new JSONException("No usable 7TV image format for emote " + id);
                 }
-
                 urlBuilder.append(selected);
-
                 url = urlBuilder.toString();
-
-                if (data.getBoolean("animated")) {
-                    imageType = "gif";
-                } else {
-                    imageType = "png";
-                }
+                // Record the selected container format separately from whether
+                // its pixels animate (7TV can publish animated WebP files).
+                imageType = "GIF".equals(format) ? "gif" : "webp";
                 if (data.has("owner")) {
                     owner = data.getJSONObject("owner").getString("display_name");
                 } else {
@@ -141,6 +141,17 @@ public class Emote {
 
         Emote emote = new Emote(id, source, code, url, imageType, owner);
         emote.aspectRatio = aspectRatio;
+        if (source == Emotes.Source.STV) {
+            emote.animated = jsonObject.getJSONObject("data").optBoolean("animated");
+            // 7TV v3: active emote flags and underlying emote metadata use
+            // DIFFERENT zero-width bits. Preserve either indication.
+            emote.zeroWidth = (jsonObject.optInt("flags") & 1) != 0
+                    || (jsonObject.getJSONObject("data").optInt("flags") & 256) != 0
+                    // A verified legacy zero-width emote can appear in some
+                    // emote sets without either per-set flag. Match the 7TV
+                    // ID, never the name (which can be aliased or duplicated).
+                    || "01FE5VRARG000FV5W0DYEQ6JKP".equals(id); // SnowTime
+        }
         return emote;
     }
 
@@ -178,11 +189,7 @@ public class Emote {
     }
 
     public boolean isAnimated() {
-        if (this.source != Emotes.Source.STV) {
-            return this.imageType.equals("gif");
-        } else {
-            return true;
-        }
+        return animated;
     }
 
     public EmoteModelAssetType getAssetType() {

@@ -101,6 +101,28 @@ FIXTURES = {
     'smali_classes4/com/twitchrn/emoteinput/TwitchEmoteInputView.smali': (
         '.method protected onAttachedToWindow()V\n    .locals 1\n'
         '    return-void\n.end method\n'),
+    'smali_classes2/k7d.smali': (
+        '.method public final C(Ljwp;Z)V\n    .locals 16\n'
+        '    invoke-virtual {v3, v5, v2}, Landroid/widget/TextView;'
+        '->setText(Ljava/lang/CharSequence;Landroid/widget/TextView$BufferType;)V\n'
+        '    return-void\n.end method\n'),
+    'smali/tv/twitch/android/feature/theatre/TheatreModeFragment.smali': (
+        '.method public onViewCreated(Landroid/view/View;Landroid/os/Bundle;)V\n'
+        '    .locals 7\n'
+        '    invoke-super {p0, p1, p2}, Landroidx/fragment/app/m;'
+        '->onViewCreated(Landroid/view/View;Landroid/os/Bundle;)V\n'
+        '    return-void\n.end method\n'),
+    'smali_classes6/q5s.smali': (
+        '.method public final x(Lo5s;)V\n    .locals 11\n'
+        '    invoke-virtual {v3, v7}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V\n'
+        '    return-void\n.end method\n'),
+    'smali_classes6/tv/twitch/android/shared/one/chat/VerticalTheatreOneChatFragment.smali': (
+        '.method public final onCreate(Landroid/os/Bundle;)V\n    .locals 4\n'
+        '    invoke-virtual {v0}, Ltv/twitch/android/shared/one/chat/'
+        'VerticalTheatreOneChatFragment$Arguments;->getChannel()'
+        'Ltv/twitch/android/models/channel/ChannelInfo;\n'
+        '    move-result-object v0\n'
+        '    return-void\n.end method\n'),
     'smali_classes3/com/facebook/react/views/text/ReactTextViewManager.smali': (
         '.method public bridge synthetic updateExtraData(Landroid/view/View;Ljava/lang/Object;)V\n'
         '    .locals 0\n    return-void\n.end method\n'
@@ -134,13 +156,13 @@ class Tests(unittest.TestCase):
         self.temp.cleanup()
 
     def test_check_only_is_atomic(self):
-        self.assertEqual(len(port.apply(self.root, check=True)), 19)
+        self.assertEqual(len(port.apply(self.root, check=True)), 23)
         for rel, contents in FIXTURES.items():
             self.assertEqual(contents, (self.root / rel).read_text())
         self.assertFalse((self.root / 'smali_classes6/bttv/compat/SettingsClick318.smali').exists())
 
-    def test_all_19_targets(self):
-        self.assertEqual(len(port.apply(self.root)), 19)
+    def test_all_23_targets(self):
+        self.assertEqual(len(port.apply(self.root)), 23)
         self.assertIn('Lilj;->m(Ljava/lang/String;',
                       (self.root / 'smali_classes4/ilj.smali').read_text())
         self.assertIn('Lrq0;->b:Licf;', (self.root / 'smali_classes4/ilj.smali').read_text())
@@ -167,6 +189,12 @@ class Tests(unittest.TestCase):
         self.assertIn('inlineViewWidth', (self.root / 'smali_classes3/d240.smali').read_text())
         self.assertIn('layoutWidth', (self.root / 'smali_classes3/com/facebook/react/fabric/mounting/SurfaceMountingManager.smali').read_text())
         self.assertIn('onImageViewSource', (self.root / 'smali_classes3/com/facebook/react/views/image/ReactImageManager.smali').read_text())
+        self.assertIn('VerticalChat318;->onClassicTextBound',
+                      (self.root / 'smali_classes2/k7d.smali').read_text())
+        self.assertIn('VerticalChat318;->onClassicTheatre',
+                      (self.root / 'smali/tv/twitch/android/feature/theatre/TheatreModeFragment.smali').read_text())
+        self.assertIn('VerticalChat318;->onTextBound', (self.root / 'smali_classes6/q5s.smali').read_text())
+        self.assertIn('VerticalChat318;->onChannel', (self.root / 'smali_classes6/tv/twitch/android/shared/one/chat/VerticalTheatreOneChatFragment.smali').read_text())
 
 
     def test_split_chat_hook_is_on_real_RN_test_id_only(self):

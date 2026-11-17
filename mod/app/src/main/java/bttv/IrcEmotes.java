@@ -9,6 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import bttv.emote.Emote;
 import bttv.emote.EmoteUrlUtil;
@@ -27,6 +28,12 @@ public class IrcEmotes {
     private static final String ROOM_ID_TAG = "room-id=";
 
     private static int rewrittenLines = 0;
+    private static int zeroWidthLogs = 0;
+    private static int zeroWidthCandidateLogs = 0;
+    // More than one chat socket can remain active when Twitch minimizes a stream.
+    // Only a channel join / navigation signal may select the foreground channel;
+    // incoming PRIVMSG traffic from an older stream must not steal that context.
+    private static final Set<Integer> prefetchedMessageChannels = ConcurrentHashMap.newKeySet();
 
     public static String rewriteFrame(String frame) {
         // one frame can hold multiple lines
@@ -101,9 +108,7 @@ public class IrcEmotes {
                 return line;
             }
             int channel = Integer.parseInt(roomId);
-            if (channel != Data.currentBroadcasterId) {
-                Data.setCurrentBroadcasterId(channel);
-            }
+            observeMessageChannel(channel);
 
             Context ctx = Data.ctx;
             if (ctx == null) {
@@ -120,9 +125,11 @@ public class IrcEmotes {
             Map<String, List<int[]>> found = new LinkedHashMap<>();
             // wide emotes get an invisible marker behind them, see WideEmotes
             StringBuilder newText = new StringBuilder(text.length() + 16);
-            List<int[]> insertions = new ArrayList<>(); // [position in the original text, length]
+            List<int[]> insertions = new ArrayList<>(); // [original code-point boundary, signed offset]
             int position = 0;
             int inserted = 0;
+            boolean previousWasEmote = false;
+            float baseRatio = 1f;
             int i = 0;
             int length = text.length();
             while (i < length) {
@@ -132,29 +139,68 @@ public class IrcEmotes {
                 }
                 if (wordEnd > i) {
                     String word = text.substring(i, wordEnd);
-                    newText.append(word);
                     int codePoints = word.codePointCount(0, word.length());
-                    if (!taken.contains(position)) {
-                        Emote emote = Emotes.getEmote(ctx, word, channel);
-                        if (emote != null) {
-                            String marker = WideEmotes.marker(emote);
-                            String id = (marker.isEmpty() ? "BTTV-" : EmoteUrlUtil.WIDE_PREFIX) + emote.id;
-                            List<int[]> positions = found.get(id);
-                            if (positions == null) {
-                                positions = new ArrayList<>();
-                                found.put(id, positions);
-                            }
-                            int start = position + inserted;
-                            positions.add(new int[]{start, start + codePoints - 1});
-
-                            if (!marker.isEmpty()) {
-                                newText.append(marker);
-                                insertions.add(new int[]{position + codePoints, marker.length()});
-                                inserted += marker.length();
-                            }
+                    boolean nativeEmote = taken.contains(position);
+                    Emote emote = nativeEmote ? null : Emotes.getEmote(ctx, word, channel);
+                    if (!nativeEmote && previousWasEmote) {
+                        // Existing normal lookup intentionally prioritizes
+                        // FFZ and BTTV. Overlay-only 7TV emotes need their own
+                        // lookup to avoid being shadowed by equal-name codes.
+                        Emote zeroWidth7TV = Emotes.getZeroWidth7TVEmote(word, channel);
+                        if (zeroWidth7TV != null) emote = zeroWidth7TV;
+                    }
+                    boolean overlay = emote != null && emote.zeroWidth && previousWasEmote;
+                    // Limited diagnostics for the concrete SnowTime example.
+                    // Never log chat text, usernames, or auth/session data.
+                    if ("SnowTime".equals(word) && zeroWidthCandidateLogs++ < 8) {
+                        Emote stv = Emotes.getZeroWidth7TVEmote(word, channel);
+                        Log.i(TAG, "SnowTime lookup: channel=" + channel
+                                + " resolved=" + (emote != null)
+                                + " source=" + (emote == null ? "none" : emote.source)
+                                + " 7tvZeroWidth=" + (stv != null)
+                                + " previousEmote=" + previousWasEmote
+                                + " overlay=" + overlay);
+                    }
+                    // Remove exactly the separator preceding an overlay. The
+                    // emote spans become adjacent; subsequent words retain
+                    // normal spacing and Twitch emote positions get shifted.
+                    if (overlay && newText.length() > 0
+                            && newText.charAt(newText.length() - 1) == ' ') {
+                        newText.setLength(newText.length() - 1);
+                        insertions.add(new int[]{position, -1});
+                        inserted--;
+                    }
+                    newText.append(word);
+                    if (emote != null) {
+                        if (overlay && zeroWidthLogs++ < 4) {
+                            Log.i(TAG, "7TV zero-width emote positioned over preceding emote: " + emote.code
+                                    + " (id=" + emote.id + ", channel=" + channel + ")");
+                        }
+                        String marker = overlay ? WideEmotes.OVERLAY_MARKER : WideEmotes.marker(emote);
+                        String id = overlay
+                                ? EmoteUrlUtil.overlayId(emote.id, WideEmotes.steps(baseRatio))
+                                : (marker.isEmpty() ? "BTTV-" : EmoteUrlUtil.WIDE_PREFIX) + emote.id;
+                        List<int[]> positions = found.get(id);
+                        if (positions == null) {
+                            positions = new ArrayList<>();
+                            found.put(id, positions);
+                        }
+                        int start = position + inserted;
+                        positions.add(new int[]{start, start + codePoints - 1});
+                        if (!marker.isEmpty()) {
+                            newText.append(marker);
+                            insertions.add(new int[]{position + codePoints, marker.length()});
+                            inserted += marker.length();
                         }
                     }
+                    if (!overlay) {
+                        baseRatio = emote == null ? 1f : emote.aspectRatio;
+                    }
+                    previousWasEmote = nativeEmote || emote != null;
                     position += codePoints;
+                } else {
+                    // Multiple spaces must not cause overlays to bridge text.
+                    previousWasEmote = false;
                 }
                 // the space
                 if (wordEnd < length) {
@@ -193,6 +239,28 @@ public class IrcEmotes {
         } catch (Throwable t) {
             Log.e(TAG, "rewriteLine: ", t);
             return line;
+        }
+    }
+
+    /**
+     * Chat traffic isn't a navigation event. A minimized stream may keep sending
+     * PRIVMSG frames after the user has opened a different broadcaster.
+     *
+     * Always use the message's room-id for its emotes, and preload previously
+     * unseen secondary rooms without resetting the foreground broadcaster.
+     */
+    private static void observeMessageChannel(int channel) {
+        if (channel <= 0) return;
+        if (Data.currentBroadcasterId <= 0) {
+            Data.setCurrentBroadcasterId(channel);
+        } else if (channel != Data.currentBroadcasterId && prefetchedMessageChannels.add(channel)) {
+            try {
+                Emotes.ensureChannelEmotes(Data.ctx, channel);
+                Log.i(TAG, "Loaded secondary IRC channel emotes without changing active channel");
+            } catch (Throwable t) {
+                prefetchedMessageChannels.remove(channel);
+                Log.e(TAG, "Could not preload secondary channel emotes", t);
+            }
         }
     }
 

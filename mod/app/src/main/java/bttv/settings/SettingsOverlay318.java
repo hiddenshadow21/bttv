@@ -21,6 +21,7 @@ import bttv.Data;
 import bttv.Res;
 import bttv.ResUtil;
 import bttv.SplitChat318;
+import bttv.emote.Emotes;
 
 /** Open BTTV preferences from the clickable Compose settings row injected
  * into Twitch 31.8.0's MainSettingsFragmentV2 scrolling content.
@@ -166,6 +167,12 @@ public final class SettingsOverlay318 {
             preference.set(ctx, new UserPreferences.Entry.BoolValue(checked));
             Log.i(TAG, "Changed " + preference.key + " to " + checked);
             if (setting == Settings.SplitChatEnabled) SplitChat318.refresh();
+            if (checked && (setting == Settings.BTTVEmotesEnabled
+                    || setting == Settings.FFZEmotesEnabled
+                    || setting == Settings.SevenTVEmotesEnabled)) {
+                // Fill newly enabled providers without waiting for a stream switch.
+                Emotes.ensureChannelEmotes(ctx, Data.currentBroadcasterId);
+            }
         });
         root.addView(toggle, new LinearLayout.LayoutParams(-1, -2));
     }
