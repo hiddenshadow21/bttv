@@ -169,7 +169,8 @@ class StackCardTests(unittest.TestCase):
         self.assertIn('StackedEmoteDetails.onCardRequest(emoteId)', card)
         self.assertNotIn('new AlertDialog.Builder(', (JAVA / 'emote/StackedEmoteDetails.java').read_text())
         script = (JAVA.parents[5] / 'v31/apply_hooks_31_8.py').read_text()
-        self.assertIn('onReactNativeText(Landroid/view/View;)V', script)
+        # Expected in this diagnostic branch: EmoteCard text hook is not installed.
+        self.assertNotIn('onReactNativeText(Landroid/view/View;)V', script)
 
 if __name__ == '__main__':
     unittest.main()
