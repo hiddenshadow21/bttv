@@ -107,13 +107,9 @@ public final class ChatKeyboardRemeasure318 {
             float density = view.getResources().getDisplayMetrics().density;
             if (Math.abs(height - oldHeight) < Math.max(1, (int) (120f * density))) return;
 
-            if (nowIme != null && previousIme != null
-                    && !nowIme.booleanValue() && !previousIme.booleanValue()) {
-                return;
-            }
-            if (nowIme == null && previousIme != null && !previousIme.booleanValue()) {
-                return;
-            }
+            // On Android, IME insets can be dispatched AFTER the layout resize.
+            // A large theatre-height change is the reliable signal here;
+            // previousIme/nowIme are diagnostic only, never a suppressing gate.
             if (isMinimized(miniPlayer.get())) {
                 Log.i(TAG, "skipped RN remeasure: player still minimized");
                 return;
