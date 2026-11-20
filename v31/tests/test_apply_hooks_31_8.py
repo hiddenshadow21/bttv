@@ -106,6 +106,17 @@ FIXTURES = {
         '    invoke-virtual {v3, v5, v2}, Landroid/widget/TextView;'
         '->setText(Ljava/lang/CharSequence;Landroid/widget/TextView$BufferType;)V\n'
         '    return-void\n.end method\n'),
+    'smali_classes5/tv/twitch/android/feature/discovery/feed/rn/theatre/TwitchRNTheatreFragment.smali': (
+        '.field public miniPlayer:Ltv/twitch/android/feature/discovery/feed/rn/theatre/MiniPlayerController;\n'
+        '.field private final rnSurfaceController:Ltv/twitch/android/feature/discovery/feed/rn/runtime/RNSurfaceController;\n'
+        '.method public onViewCreated(Landroid/view/View;Landroid/os/Bundle;)V\n'
+        '    .locals 5\n'
+        '    invoke-super {p0, p1, p2}, Landroidx/fragment/app/m;'
+        '->onViewCreated(Landroid/view/View;Landroid/os/Bundle;)V\n'
+        '    return-void\n.end method\n'
+        '.method public onDestroyView()V\n'
+        '    .locals 2\n'
+        '    return-void\n.end method\n'),
     'smali/tv/twitch/android/feature/theatre/TheatreModeFragment.smali': (
         '.method public onViewCreated(Landroid/view/View;Landroid/os/Bundle;)V\n'
         '    .locals 7\n'
@@ -156,13 +167,13 @@ class Tests(unittest.TestCase):
         self.temp.cleanup()
 
     def test_check_only_is_atomic(self):
-        self.assertEqual(len(port.apply(self.root, check=True)), 23)
+        self.assertEqual(len(port.apply(self.root, check=True)), 24)
         for rel, contents in FIXTURES.items():
             self.assertEqual(contents, (self.root / rel).read_text())
         self.assertFalse((self.root / 'smali_classes6/bttv/compat/SettingsClick318.smali').exists())
 
-    def test_all_23_targets(self):
-        self.assertEqual(len(port.apply(self.root)), 23)
+    def test_all_24_targets(self):
+        self.assertEqual(len(port.apply(self.root)), 24)
         self.assertIn('Lilj;->m(Ljava/lang/String;',
                       (self.root / 'smali_classes4/ilj.smali').read_text())
         self.assertIn('Lrq0;->b:Licf;', (self.root / 'smali_classes4/ilj.smali').read_text())
@@ -196,6 +207,32 @@ class Tests(unittest.TestCase):
         self.assertIn('VerticalChat318;->onTextBound', (self.root / 'smali_classes6/q5s.smali').read_text())
         self.assertIn('VerticalChat318;->onChannel', (self.root / 'smali_classes6/tv/twitch/android/shared/one/chat/VerticalTheatreOneChatFragment.smali').read_text())
 
+
+    def test_keyboard_hook_is_on_theatre_only_and_preserves_registers(self):
+        port.apply(self.root)
+        path = self.root / (
+            'smali_classes5/tv/twitch/android/feature/discovery/feed/rn/theatre/'
+            'TwitchRNTheatreFragment.smali')
+        smali = path.read_text()
+        self.assertEqual(smali.count('ChatKeyboardRemeasure318;->install'), 1)
+        self.assertEqual(smali.count('ChatKeyboardRemeasure318;->uninstall'), 1)
+        self.assertIn('    iget-object v0, p0,', smali)
+        self.assertIn('    iget-object v1, p0,', smali)
+        self.assertIn('    invoke-static {p1, v0, v1}', smali)
+        self.assertIn('.method public onViewCreated(Landroid/view/View;Landroid/os/Bundle;)V\n'
+                      '    .locals 5\n', smali)
+        self.assertIn('.method public onDestroyView()V\n    .locals 2\n', smali)
+
+    def test_missing_rn_theatre_ime_hook_fails_atomically(self):
+        path = self.root / (
+            'smali_classes5/tv/twitch/android/feature/discovery/feed/rn/theatre/'
+            'TwitchRNTheatreFragment.smali')
+        source = path.read_text()
+        path.write_text(source.replace('    .locals 5\n', '    .locals 7\n'))
+        with self.assertRaises(port.PatchError):
+            port.apply(self.root)
+        self.assertEqual(FIXTURES['smali_classes3/fy90.smali'],
+                         (self.root / 'smali_classes3/fy90.smali').read_text())
 
     def test_split_chat_hook_is_on_real_RN_test_id_only(self):
         port.apply(self.root)
