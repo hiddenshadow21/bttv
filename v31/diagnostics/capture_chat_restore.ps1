@@ -39,6 +39,33 @@ $meta | Set-Content -Path (Join-Path $runDir 'device-info.txt') -Encoding UTF8
 function Capture-Snapshot([string]$label) {
     Write-Host "Capturing $label ..." -ForegroundColor Cyan
 
+    # Record IME state BEFORE uiautomator dump (the dump may disturb focus).
+    $before = @(& $adb -s $Serial shell dumpsys input_method)
+    if ($LASTEXITCODE -ne 0) { throw 'Unable to capture IME state before UI hierarchy.' }
+    $imeState = @($before | Select-String -Pattern 'mInputShown\s*=|mIsInputViewShown\s*=|mShowRequested\s*=|mImeWindowVis\s*=|mInputViewStarted\s*=' | ForEach-Object { $_.Line.Trim() })
+    $imeState | Set-Content -Path (Join-Path $runDir "$label-ime-BEFORE-ui-dump.txt") -Encoding UTF8
+
+    $keyboardShown = (@($imeState | Where-Object { $_ -match '(?:^|\s)mInputShown=true(?:\s|$)' }).Count -gt 0)
+    Write-Host "Keyboard reported by input_method: $keyboardShown" -ForegroundColor Yellow
+    if ($label -eq '02-broken-keyboard-open' -and -not $keyboardShown) {
+        Write-Warning 'Keyboard is NOT reported open at capture time. The result will not prove the failing IME state.'
+    }
+
+    # Keep screenshots PRIVATE and LOCAL for checking what was actually shown.
+    # They are NOT included in the ZIP and must be reviewed separately before sharing.
+    $shotPhone = '/sdcard/bttv-chat-restore-snapshot.png'
+    $shotLocal = Join-Path $runDir "$label-PRIVATE-LOCAL-screenshot.png"
+    try {
+        & $adb -s $Serial shell screencap -p $shotPhone | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            & $adb -s $Serial pull $shotPhone $shotLocal | Out-Null
+        }
+    } catch {
+        Write-Warning "Screenshot skipped: $($_.Exception.Message)"
+    } finally {
+        & $adb -s $Serial shell rm -f $shotPhone 2>$null | Out-Null
+    }
+
     # Sanitized accessibility hierarchy: NEVER write text/content-desc/password.
     $tempXml = Join-Path $runDir "$label-PRIVATE-DELETE.xml"
     $outputJson = Join-Path $runDir "$label-view-bounds.json"
@@ -109,8 +136,8 @@ Write-Host 'IMPORTANT: Keep the keyboard state in mind. The first reproduction h
 if ($LASTEXITCODE -ne 0) { throw 'Unable to clear logcat.' }
 [void](Read-Host 'Open a stream with working VIDEO AND CHAT, with the keyboard CLOSED. Press Enter here')
 Capture-Snapshot '01-working-keyboard-closed'
-[void](Read-Host 'Minimize and restore until VIDEO PLAYS but CHAT is BLACK. Do not change keyboard state yet. Press Enter here')
-Capture-Snapshot '02-broken-as-is'
+[void](Read-Host 'Minimize and restore the player, OPEN THE CHAT KEYBOARD until chat disappears and video keeps playing. KEEP THE KEYBOARD OPEN. Press Enter on your PC')
+Capture-Snapshot '02-broken-keyboard-open'
 [void](Read-Host 'Without closing/reopening the STREAM, DISMISS the keyboard if visible (use its hide arrow; avoid navigating away). Wait 2 seconds and press Enter here')
 Capture-Snapshot '03-after-keyboard-hidden'
 
@@ -139,3 +166,4 @@ Compress-Archive -LiteralPath $files -DestinationPath $zip -Force
 Write-Host "Capture ready: $zip" -ForegroundColor Green
 Write-Host 'Inspect the ZIP before sharing. Logs may still contain channel names or other personal data.' -ForegroundColor Yellow
 Write-Host 'No app sources, chat text, raw accessibility XML or screenshots are included in the ZIP.' -ForegroundColor Yellow
+Write-Host "Private screenshots (not in ZIP) are in $runDir, for your own confirmation." -ForegroundColor Yellow
