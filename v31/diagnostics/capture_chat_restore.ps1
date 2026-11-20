@@ -48,13 +48,33 @@ function Capture-Snapshot([string]$label) {
         & $adb -s $Serial pull /sdcard/bttv-chat-restore.xml $tempXml | Out-Null
         if ($LASTEXITCODE -ne 0) { throw 'adb pull failed' }
         [xml]$doc = Get-Content -LiteralPath $tempXml -Encoding UTF8 -Raw
+        # Dynamic accessibility IDs sometimes contain channel names.
+        # Retain only fixed IDs needed for theatre/chat layout comparison.
+        $safeIds = @(
+            'android:id/content', 'overlay-provider-root', 'overlay-host',
+            'picker-overlay', 'theatre-screen', 'theatre-backdrop',
+            'theatre-portrait-layout', 'theatre-video-zoom',
+            'theatre-video-zoom-gesture-surface', 'theatre-video-zoom-clip',
+            'theatre-video-zoom-video-layer', 'player-controls-tap-layer',
+            'video-player', 'stage-inflow-metadata', 'channel-metadata',
+            'theatre-chat', 'chat-area', 'chat-message-region',
+            'chat-message-list-container', 'chat-message-list',
+            'chat-message-list-reader-observer', 'chat-message-row',
+            'chat-input-bar', 'chat-input-field-box', 'chat-input-field-group',
+            'chat-composer-input', 'discovery-feed-screen', 'feed-list',
+            'tv.twitch.bttvandroid.app:id/rn_theatre_container',
+            'tv.twitch.bttvandroid.app:id/rn_theatre_draggable',
+            'tv.twitch.bttvandroid.app:id/fragment_container',
+            'tv.twitch.bttvandroid.app:id/viewer_landing_layout'
+        )
         $nodes = @(
             foreach ($node in $doc.SelectNodes('//node')) {
+                $id = $node.GetAttribute('resource-id')
+                if ($id -notin $safeIds) { $id = '' }
                 [pscustomobject]@{
                     class = $node.GetAttribute('class')
                     bounds = $node.GetAttribute('bounds')
-                    resourceId = $node.GetAttribute('resource-id')
-                    visibleToUser = $node.GetAttribute('visible-to-user')
+                    resourceId = $id
                 }
             }
         )
