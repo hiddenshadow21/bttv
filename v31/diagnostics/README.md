@@ -17,10 +17,14 @@ You need an Android phone connected over ADB with USB debugging authorized.
    powershell -ExecutionPolicy Bypass -File .\v31\diagnostics\capture_chat_restore.ps1
 
    If more than one ADB device is connected, add -Serial DEVICE_SERIAL.
-3. Follow the prompts: capture a normal stream with the keyboard closed;
-   reproduce the broken state; then dismiss the keyboard **without closing the
-   stream** and take a third capture. Note whether chat returns.
-4. The script creates dist/chat-restore-TIMESTAMP.zip. **Review the ZIP for
+3. Follow the prompts: capture a normal stream with keyboard closed.
+   Then **keep the keyboard OPEN** on the broken stream until the second snapshot
+   completes. Dismiss the keyboard without closing the stream for the third
+   snapshot. Note whether chat returns.
+4. The script saves IME state **before** the UI hierarchy dump, warns if the
+   keyboard was not reported as open for the broken snapshot, and saves
+   screenshots locally as PRIVATE files (not in the ZIP).
+5. The script creates dist/chat-restore-TIMESTAMP.zip. **Review the ZIP for
    sensitive data** before uploading it to this conversation.
 
 The initial capture showed a 922-pixel window-height reduction alongside a
@@ -70,3 +74,19 @@ device logs. Full APK files are not required at this stage.
 
 The next code change should be based on the class and layout transition seen
 in the two snapshots. Keep the app/runtime patch separate from diagnostic work.
+
+## Follow-up: IME-dependent failure in the user's capture
+
+The second user ZIP (`chat-restore-20261120-184959.zip`) captured the IME
+*closed* in all three states; the RN theatre and chat tree were fully mounted
+in all three. The original broken snapshot had a 922 px theatre height shrink
+and omitted `theatre-chat`, `chat-message-list` and `chat-input-bar`.
+The user has now confirmed that this black-chat problem appears only with the
+keyboard open. Prefer investigating React Native responsive theatre layout,
+Android soft-input/window insets and minimized-player restore state, not
+emote replacement or row painting. Do not assume the root cause is proven.
+
+To investigate the actual layout condition, the Twitch 31.8.0 Hermes/React
+Native bundle that contains `theatre-screen` / `theatre-chat` may be more
+informative than Java chat-message smali. Request targeted files or an
+extracted map when available, not a full user-data dump.
