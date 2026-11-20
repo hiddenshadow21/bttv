@@ -396,6 +396,55 @@ def react_chat_row_test_id(text: str) -> str:
         lambda body: replace_once(body, anchor, replacement, 'RN chat row testID'),
         'RN chat row testID')
 
+def theatre_keyboard_remeasure(text: str) -> str:
+    """Wake RN theatre's existing surface measurement after an IME resize.
+
+    Verified against the unmodified 31.8.0 TwitchRNTheatreFragment smali.
+    Both lifecycle hooks are applied as a single atomic transformer.
+    """
+    created = '.method public onViewCreated(Landroid/view/View;Landroid/os/Bundle;)V\n'
+    destroy = '.method public onDestroyView()V\n'
+    super_anchor = (
+        '    invoke-super {p0, p1, p2}, Landroidx/fragment/app/m;'
+        '->onViewCreated(Landroid/view/View;Landroid/os/Bundle;)V\n'
+    )
+    install_hook = (
+        '\n    # BTTV 31.8: experiment - remeasure RN theatre on IME height changes\n'
+        '    iget-object v0, p0, Ltv/twitch/android/feature/discovery/feed/rn/theatre/'
+        'TwitchRNTheatreFragment;->rnSurfaceController:'
+        'Ltv/twitch/android/feature/discovery/feed/rn/runtime/RNSurfaceController;\n'
+        '    iget-object v1, p0, Ltv/twitch/android/feature/discovery/feed/rn/theatre/'
+        'TwitchRNTheatreFragment;->miniPlayer:'
+        'Ltv/twitch/android/feature/discovery/feed/rn/theatre/MiniPlayerController;\n'
+        '    invoke-static {p1, v0, v1}, Lbttv/ChatKeyboardRemeasure318;->install('
+        'Landroid/view/View;Ljava/lang/Object;Ljava/lang/Object;)V\n'
+    )
+
+    def patch_created(body: str) -> str:
+        if '    .locals 5\n' not in body:
+            raise PatchError('RN theatre onViewCreated: unexpected register count')
+        return replace_once(body, super_anchor, super_anchor + install_hook,
+                            'RN theatre keyboard install')
+
+    text = change_method(text, created, patch_created, 'RN theatre onViewCreated')
+
+    def patch_destroy(body: str) -> str:
+        anchor = '    .locals 2\n'
+        if body.count(anchor) != 1:
+            raise PatchError('RN theatre onDestroyView: unexpected register count')
+        uninstall = (
+            '\n    # BTTV 31.8: remove IME layout watcher on fragment view destruction\n'
+            '    invoke-virtual {p0}, Landroidx/fragment/app/m;->getView()Landroid/view/View;\n'
+            '    move-result-object v0\n'
+            '    invoke-static {v0}, Lbttv/ChatKeyboardRemeasure318;'
+            '->uninstall(Landroid/view/View;)V\n'
+        )
+        return replace_once(body, anchor, anchor + uninstall,
+                            'RN theatre keyboard uninstall')
+
+    return change_method(text, destroy, patch_destroy, 'RN theatre onDestroyView')
+
+
 def classic_native_chat(text: str) -> str:
     """31.8.0 native RecyclerView message viewholder, confirmed by UI dump.
 
@@ -484,6 +533,7 @@ TARGETS = (
     ('com/facebook/react/uimanager/BaseViewManager.smali', react_chat_row_test_id),
     ('k7d.smali', classic_native_chat),
     ('tv/twitch/android/feature/theatre/TheatreModeFragment.smali', classic_native_theatre),
+    ('tv/twitch/android/feature/discovery/feed/rn/theatre/TwitchRNTheatreFragment.smali', theatre_keyboard_remeasure),
     ('q5s.smali', vertical_native_chat),
     ('tv/twitch/android/shared/one/chat/VerticalTheatreOneChatFragment.smali', vertical_native_channel),
     ('p040.smali', wide_span_width),
