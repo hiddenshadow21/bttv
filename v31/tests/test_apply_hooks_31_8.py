@@ -156,13 +156,13 @@ class Tests(unittest.TestCase):
         self.temp.cleanup()
 
     def test_check_only_is_atomic(self):
-        self.assertEqual(len(port.apply(self.root, check=True)), 23)
+        self.assertEqual(len(port.apply(self.root, check=True)), 19)
         for rel, contents in FIXTURES.items():
             self.assertEqual(contents, (self.root / rel).read_text())
         self.assertFalse((self.root / 'smali_classes6/bttv/compat/SettingsClick318.smali').exists())
 
-    def test_all_23_targets(self):
-        self.assertEqual(len(port.apply(self.root)), 23)
+    def test_all_19_isolation_targets(self):
+        self.assertEqual(len(port.apply(self.root)), 19)
         self.assertIn('Lilj;->m(Ljava/lang/String;',
                       (self.root / 'smali_classes4/ilj.smali').read_text())
         self.assertIn('Lrq0;->b:Licf;', (self.root / 'smali_classes4/ilj.smali').read_text())
@@ -185,10 +185,20 @@ class Tests(unittest.TestCase):
         # The 31.8 React Native popup does not use the old native ic9 presenter.
         self.assertEqual(FIXTURES['smali_classes2/ic9.smali'],
                          (self.root / 'smali_classes2/ic9.smali').read_text())
-        self.assertIn('inlineViewWidth', (self.root / 'smali_classes3/p040.smali').read_text())
-        self.assertIn('inlineViewWidth', (self.root / 'smali_classes3/d240.smali').read_text())
-        self.assertIn('layoutWidth', (self.root / 'smali_classes3/com/facebook/react/fabric/mounting/SurfaceMountingManager.smali').read_text())
-        self.assertIn('onImageViewSource', (self.root / 'smali_classes3/com/facebook/react/views/image/ReactImageManager.smali').read_text())
+        # The RN visual mounting/layout hooks are intentionally absent.
+        for name in (
+            'smali_classes3/p040.smali',
+            'smali_classes3/d240.smali',
+            'smali_classes3/com/facebook/react/fabric/mounting/SurfaceMountingManager.smali',
+            'smali_classes3/com/facebook/react/uimanager/BaseViewManager.smali',
+        ):
+            self.assertEqual(FIXTURES[name], (self.root / name).read_text())
+        image = (self.root / 'smali_classes3/com/facebook/react/views/image/ReactImageManager.smali').read_text()
+        self.assertNotIn('onImageViewSource', image)
+        self.assertIn('rewriteReactSources', image)
+        self.assertNotIn('onReactNativeText', (
+            self.root / 'smali_classes3/com/facebook/react/views/text/ReactTextViewManager.smali'
+        ).read_text())
         self.assertIn('VerticalChat318;->onClassicTextBound',
                       (self.root / 'smali_classes2/k7d.smali').read_text())
         self.assertIn('VerticalChat318;->onClassicTheatre',
@@ -197,28 +207,16 @@ class Tests(unittest.TestCase):
         self.assertIn('VerticalChat318;->onChannel', (self.root / 'smali_classes6/tv/twitch/android/shared/one/chat/VerticalTheatreOneChatFragment.smali').read_text())
 
 
-    def test_split_chat_hook_is_on_real_RN_test_id_only(self):
+    def test_all_new_rn_visual_hooks_are_disabled(self):
         port.apply(self.root)
-        p = self.root / 'smali_classes3/com/facebook/react/uimanager/BaseViewManager.smali'
-        smali = p.read_text()
-        self.assertEqual(smali.count('SplitChat318;->onTestId'), 1)
-        self.assertIn('invoke-static {p1, p2}', smali)
-        self.assertIn('invoke-virtual {p1, p2}, Landroid/view/View;->setTag', smali)
-
-    def test_missing_split_chat_test_id_anchor_is_atomic(self):
-        p = self.root / 'smali_classes3/com/facebook/react/uimanager/BaseViewManager.smali'
-        p.write_text(p.read_text().replace('setTag(Ljava/lang/Object;)', 'missingTag(Ljava/lang/Object;)'))
-        with self.assertRaises(port.PatchError):
-            port.apply(self.root)
-        self.assertEqual(FIXTURES['smali_classes3/fy90.smali'],
-                         (self.root / 'smali_classes3/fy90.smali').read_text())
-
-    def test_missing_replacement_span_fails_atomically(self):
-        p = self.root / 'smali_classes3/p040.smali'
-        p.write_text(p.read_text().replace('getSize(', 'notGetSize('))
-        with self.assertRaises(port.PatchError): port.apply(self.root)
-        self.assertEqual(FIXTURES['smali_classes3/fy90.smali'],
-                         (self.root / 'smali_classes3/fy90.smali').read_text())
+        names = {name for name, _ in port.TARGETS}
+        for name in (
+            'com/facebook/react/uimanager/BaseViewManager.smali',
+            'p040.smali',
+            'd240.smali',
+            'com/facebook/react/fabric/mounting/SurfaceMountingManager.smali',
+        ):
+            self.assertNotIn(name, names)
 
     def test_missing_real_settings_host_context_fails_atomically(self):
         path = self.root / 'smali_classes2/tv/twitch/android/settings/main/MainSettingsFragmentV2.smali'
