@@ -87,3 +87,70 @@ only establishes that the hook ran, **not** that chat recovered. If the
 marker appears while chat still disappears, the next step is mapping the
 Hermes TheatreScreen conditional that removes theatre-chat when the app window
 shrinks (instead of adding more native requestLayout calls).
+
+## 2026-11-20: first on-device test failed silently; correction
+
+The first experimental build did not restore chat. The user saw no
+BTTVChatResize318 logs. Source review against the exact original
+MiniPlayerController.smali found a concrete implementation error:
+
+    .method public final isMinimized()Z
+
+The earlier Java helper mistakenly reflected getMinimized(), a spelling
+that JADX synthesized when rendering the Kotlin property in Java. The
+actual Android DEX name is **isMinimized**. The helper treated failed
+reflection as minimized, so even a legitimate keyboard resize would be
+suppressed without a success log.
+
+Corrected in the experimental branch:
+
+- Look up isMinimized(), not getMinimized().
+- Log immediately on install() invocation, after installation, every
+  nonzero theatre height change, and when remeasurement is requested.
+- Do not gate a genuine large height change on WindowInsets.Type.ime()
+  already reflecting keyboard state: Android may dispatch insets after
+  onLayoutChange, so previously both snapshots could read false.
+- Added a source-level regression assertion for the real DEX method
+  name, plus an APK-level DEX marker check.
+
+No claim of runtime success is made until the rebuilt APK is tested.
+
+### Update your *existing* experimental worktree and rebuild
+
+From your primary repository root, in Windows PowerShell:
+
+    git -C ..\bttv-ime-experiment fetch origin experiment/chat-keyboard-surface-remeasure-31.8.0
+    git -C ..\bttv-ime-experiment switch --detach origin/experiment/chat-keyboard-surface-remeasure-31.8.0
+    Push-Location ..\bttv-ime-experiment
+    docker build --progress=plain --output "type=local,dest=./dist" .
+    powershell -ExecutionPolicy Bypass -File .\v31\diagnostics\verify_ime_apk.ps1 -ApkPath .\dist\bttv-31.8.0.apk
+    Pop-Location
+
+The verifier must print "Current experimental hook found in DEX". If not,
+stop: the wrong/old APK was built. This does **not** verify that the new
+APK is installed on the phone.
+
+After installing the compatible newly built APK, clear logcat, reopen a
+stream so the theatre fragment starts, reproduce the keyboard issue,
+then collect:
+
+    adb logcat -c
+    # Open stream, minimize/restore, open keyboard.
+    adb logcat -d -v time -s BTTVChatResize318:V AndroidRuntime:E
+
+Expected diagnostic progression:
+
+1. "install invoked; root=true surface=true mini=true":
+   the smali patch ran and dependencies were available.
+2. "installed theatre layout watcher; ... mini=false": listener ready.
+3. "theatre layout changed: height=...->...": resize observed.
+4. "requesting RN remeasure..." / "IME-height transition: requested ...":
+   native remeasurement requested.
+
+If no **install invoked** line appears after opening a new stream, suspect
+wrong installed APK, wrong theatre route, or a hook that did not run. If
+install logs but no resize logs appear when keyboard opens, monitor the
+actual activity window/parent container instead of adding more remeasure
+calls. If remeasure is requested but chat remains absent, the culprit is
+likely the Hermes layout/conditional rendering, not missing native
+remeasure.
