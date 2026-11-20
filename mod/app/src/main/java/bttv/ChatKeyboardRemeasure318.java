@@ -29,7 +29,11 @@ public final class ChatKeyboardRemeasure318 {
     private ChatKeyboardRemeasure318() {}
 
     public static void install(View theatreRoot, Object surfaceController, Object miniPlayer) {
+        Log.i(TAG, "install invoked; root=" + (theatreRoot != null)
+                + " surface=" + (surfaceController != null)
+                + " mini=" + (miniPlayer != null));
         if (theatreRoot == null || surfaceController == null || miniPlayer == null) {
+            Log.w(TAG, "theatre resize listener not installed: missing dependency");
             return;
         }
         synchronized (WATCHERS) {
@@ -48,7 +52,10 @@ public final class ChatKeyboardRemeasure318 {
         if (theatreRoot == null) return;
         synchronized (WATCHERS) {
             Watcher old = WATCHERS.remove(theatreRoot);
-            if (old != null) theatreRoot.removeOnLayoutChangeListener(old);
+            if (old != null) {
+                theatreRoot.removeOnLayoutChangeListener(old);
+                Log.i(TAG, "removed theatre layout watcher");
+            }
         }
     }
 
