@@ -90,3 +90,16 @@ To investigate the actual layout condition, the Twitch 31.8.0 Hermes/React
 Native bundle that contains `theatre-screen` / `theatre-chat` may be more
 informative than Java chat-message smali. Request targeted files or an
 extracted map when available, not a full user-data dump.
+
+## Docker-only source extraction
+
+A standalone [Docker decompiler](decompile/README.md) is now available
+on this diagnostics branch. It reads the original 31.8.0 twitch.zip/.apkm
+with Apktool + JADX entirely inside Docker; it does not install Java or
+decompilation tools on the host, modify the original APK, or build/install
+BTTV. It exports full smali/Java plus the raw Hermes bundle and a targeted
+chat-restore-review.zip for upload.
+
+Windows PowerShell (repository root):
+
+    powershell -ExecutionPolicy Bypass -File .\v31\diagnostics\decompile\run.ps1
