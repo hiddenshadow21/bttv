@@ -38,6 +38,9 @@ public final class ChatKeyboardRemeasure318 {
             Watcher watcher = new Watcher(theatreRoot, surfaceController, miniPlayer);
             WATCHERS.put(theatreRoot, watcher);
             theatreRoot.addOnLayoutChangeListener(watcher);
+            Log.i(TAG, "installed theatre layout watcher; height=" + theatreRoot.getHeight()
+                    + " ime=" + imeVisible(theatreRoot)
+                    + " mini=" + isMinimized(miniPlayer));
         }
     }
 
@@ -52,10 +55,12 @@ public final class ChatKeyboardRemeasure318 {
     private static boolean isMinimized(Object miniPlayer) {
         if (miniPlayer == null) return true;
         try {
-            Object value = miniPlayer.getClass().getMethod("getMinimized").invoke(miniPlayer);
+            Object value = miniPlayer.getClass().getMethod("isMinimized").invoke(miniPlayer);
             return Boolean.TRUE.equals(value);
         } catch (Throwable t) {
-            // Fail closed when the expected Twitch 31.8 method is absent.
+            // Fail closed, but NEVER silently swallow an unexpected method.
+            Log.w(TAG, "MiniPlayerController.isMinimized unavailable: "
+                    + t.getClass().getSimpleName());
             return true;
         }
     }
@@ -94,6 +99,8 @@ public final class ChatKeyboardRemeasure318 {
             final Boolean nowIme = imeVisible(view);
             lastIme = nowIme;
             if (oldHeight <= 0 || height <= 0 || height == oldHeight) return;
+            Log.i(TAG, "theatre layout changed: height=" + oldHeight + "->" + height
+                    + " ime=" + previousIme + "->" + nowIme);
 
             // Ignore small video/decoration adjustments. A keyboard typically
             // changes height by hundreds of dp; this threshold is 120 dp.
@@ -107,8 +114,13 @@ public final class ChatKeyboardRemeasure318 {
             if (nowIme == null && previousIme != null && !previousIme.booleanValue()) {
                 return;
             }
-            if (isMinimized(miniPlayer.get()) || pending) return;
+            if (isMinimized(miniPlayer.get())) {
+                Log.i(TAG, "skipped RN remeasure: player still minimized");
+                return;
+            }
+            if (pending) return;
 
+            Log.i(TAG, "requesting RN remeasure after keyboard-related theatre height change");
             pending = true;
             final View theatre = root.get();
             if (theatre == null) {
