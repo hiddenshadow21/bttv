@@ -17,11 +17,16 @@ You need an Android phone connected over ADB with USB debugging authorized.
    powershell -ExecutionPolicy Bypass -File .\v31\diagnostics\capture_chat_restore.ps1
 
    If more than one ADB device is connected, add -Serial DEVICE_SERIAL.
-3. Follow the prompts: capture a normal stream with chat visible, then minimize
-   and restore the stream until the video plays but chat is black. Keep the
-   keyboard in the same state for both snapshots (preferably closed).
+3. Follow the prompts: capture a normal stream with the keyboard closed;
+   reproduce the broken state; then dismiss the keyboard **without closing the
+   stream** and take a third capture. Note whether chat returns.
 4. The script creates dist/chat-restore-TIMESTAMP.zip. **Review the ZIP for
    sensitive data** before uploading it to this conversation.
+
+The initial capture showed a 922-pixel window-height reduction alongside a
+missing chat subtree, so the third snapshot is specifically designed to
+differentiate IME/window-resize behavior from the mini-player transition.
+See [2026-11-20 findings](REPORT-2026-11-20.md).
 
 The ZIP contains limited logcat tags, class names and bounds from Android's
 accessibility hierarchy (not message text), and selected window/activity
