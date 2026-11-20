@@ -90,9 +90,7 @@ def image_manager(text: str) -> str:
     anchor = ('    .annotation runtime Lcom/facebook/react/uimanager/annotations/ReactProp;\n'
               '        name = "source"\n'
               '    .end annotation\n\n')
-    snippet = ('    # BTTV 31.8: capture original wide-emote IDs before URL translation\n'
-               '    invoke-static {p1, p2}, Lbttv/api/Hooks;->onImageViewSource(Ljava/lang/Object;Ljava/lang/Object;)V\n'
-               '    # BTTV 31.8: rewrite emote image sources copy-on-write\n'
+    snippet = ('    # BTTV 31.8: rewrite emote image sources copy-on-write\n'
                '    invoke-static {p2}, Lbttv/api/Hooks;->rewriteReactSources(Ljava/lang/Object;)Ljava/lang/Object;\n'
                '    move-result-object p2\n'
                '    check-cast p2, Lcom/facebook/react/bridge/ReadableArray;\n\n')
@@ -254,12 +252,7 @@ def react_text_manager(text: str, name: str) -> str:
         replacement = (anchor +
             '    # BTTV 31.8: style real RN Spannable after text update is decoded\n'
             '    invoke-static {v0}, Lbttv/ChatTimestamps;->styleText(Ljava/lang/CharSequence;)V\n')
-        # Text is assigned later in the same method, after the timestamp hook.
-        # Only named EmoteCard views are touched by this new callback.
-        text_set = '    invoke-virtual {p1, p2}, Lrjw;->setText(Lqjw;)V\n'
-        card_set = (text_set +
-            '    # BTTV 31.8: correct native EmoteCard provider/type labels\n'
-            '    invoke-static {p1}, Lbttv/api/Hooks;->onReactNativeText(Landroid/view/View;)V\n')
+        # Isolation: omit the recent EmoteCard ReactTextViewManager callback.
 
     elif name.endswith('/PreparedLayoutTextViewManager.smali'):
         signature = ('.method public updateExtraData('
@@ -273,12 +266,9 @@ def react_text_manager(text: str, name: str) -> str:
             '    invoke-static {v1}, Lbttv/ChatTimestamps;->styleText(Ljava/lang/CharSequence;)V\n')
     else:
         raise PatchError(f'Unexpected React text manager: {name}')
-    def patch(body):
-        body = replace_once(body, anchor, replacement, name + ' text payload')
-        if name.endswith('/ReactTextViewManager.smali'):
-            body = replace_once(body, text_set, card_set, name + ' native emote-card text')
-        return body
-    return change_method(text, signature, patch, name + ' text payload')
+    return change_method(text, signature,
+        lambda body: replace_once(body, anchor, replacement, name + ' text payload'),
+        name + ' text payload')
 
 
 def locate_react_text_updates(work: Path) -> list:
@@ -473,6 +463,8 @@ def vertical_native_chat(text: str) -> str:
 
 
 TARGETS = (
+    # Diagnostic-only regression isolation: omit the Nov 7 visual RN hooks.
+    # Do not change websocket/chat transport, settings, or native theatre.
     ('tv/twitch/android/app/consumer/TwitchApplication.smali', app),
     ('tv/twitch/android/settings/main/MainSettingsFragmentV2.smali', settings_fragment_context),
     ('ilj.smali', settings_compose),
@@ -481,14 +473,10 @@ TARGETS = (
     ('fy90.smali', websocket),
     ('com/facebook/react/modules/network/NetworkingModule.smali', network),
     ('com/facebook/react/views/image/ReactImageManager.smali', image_manager),
-    ('com/facebook/react/uimanager/BaseViewManager.smali', react_chat_row_test_id),
     ('k7d.smali', classic_native_chat),
     ('tv/twitch/android/feature/theatre/TheatreModeFragment.smali', classic_native_theatre),
     ('q5s.smali', vertical_native_chat),
     ('tv/twitch/android/shared/one/chat/VerticalTheatreOneChatFragment.smali', vertical_native_channel),
-    ('p040.smali', wide_span_width),
-    ('d240.smali', wide_text_layout),
-    ('com/facebook/react/fabric/mounting/SurfaceMountingManager.smali', wide_fabric_layout),
     ('com/twitchrn/emoteinput/TwitchEmoteInputView$EmoteSpanTarget.smali', input_target),
     ('com/twitchrn/emoteinput/EmoteImageLoader.smali', input_loader),
     ('com/twitchrn/emoteinput/EmoteImageSpan.smali', input_span),
