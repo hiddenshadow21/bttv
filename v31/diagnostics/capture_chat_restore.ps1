@@ -76,15 +76,23 @@ function Capture-Snapshot([string]$label) {
     $activity | Select-String -Pattern 'topResumedActivity|mResumedActivity|ResumedActivity' |
         ForEach-Object { $_.Line.Trim() } |
         Set-Content -Path (Join-Path $runDir "$label-activity.txt") -Encoding UTF8
+
+    # Record only IME visibility booleans; do not export input connections or text.
+    $ime = @(& $adb -s $Serial shell dumpsys input_method)
+    $ime | Select-String -Pattern 'mInputShown\s*=|mIsInputViewShown\s*=|mShowRequested\s*=|mImeWindowVis\s*=|mInputViewStarted\s*=' |
+        ForEach-Object { $_.Line.Trim() } |
+        Set-Content -Path (Join-Path $runDir "$label-ime-visibility.txt") -Encoding UTF8
 }
 
-Write-Host 'Clear the phone keyboard for both snapshots if possible.' -ForegroundColor Yellow
+Write-Host 'IMPORTANT: Keep the keyboard state in mind. The first reproduction had keyboard closed in working capture and open in broken capture.' -ForegroundColor Yellow
 & $adb -s $Serial logcat -c
 if ($LASTEXITCODE -ne 0) { throw 'Unable to clear logcat.' }
-[void](Read-Host 'Open a stream with working VIDEO AND CHAT. Press Enter here when both are visible')
-Capture-Snapshot '01-working'
-[void](Read-Host 'Minimize the stream and restore it until VIDEO PLAYS but CHAT is BLACK. Press Enter while it is broken')
-Capture-Snapshot '02-broken'
+[void](Read-Host 'Open a stream with working VIDEO AND CHAT, with the keyboard CLOSED. Press Enter here')
+Capture-Snapshot '01-working-keyboard-closed'
+[void](Read-Host 'Minimize and restore until VIDEO PLAYS but CHAT is BLACK. Do not change keyboard state yet. Press Enter here')
+Capture-Snapshot '02-broken-as-is'
+[void](Read-Host 'Without closing/reopening the STREAM, DISMISS the keyboard if visible (use its hide arrow; avoid navigating away). Wait 2 seconds and press Enter here')
+Capture-Snapshot '03-after-keyboard-hidden'
 
 # Narrow logging scope. Do not collect raw IRC or GraphQL traffic.
 $tags = @(
