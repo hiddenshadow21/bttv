@@ -155,11 +155,12 @@ def main():
         parser.error("Input bundle does not exist: " + str(source))
     output.mkdir(parents=True, exist_ok=True)
     smali = output / "apktool-base"
+    split_smali = output / "apktool-splits"
     java = output / "jadx-java"
     bundles = output / "hermes-bundles"
     review = output / "chat-review"
     staging = output / "_staging-apks"
-    for directory in (smali, java, bundles, review, staging):
+    for directory in (smali, split_smali, java, bundles, review, staging):
         if directory.exists():
             shutil.rmtree(directory)
     logs = output / "logs"
@@ -182,6 +183,17 @@ def main():
         if rc:
             raise RuntimeError("Apktool failed; see logs/apktool*.log")
         dex = [file for file in apks if has_dex(file)]
+        paths = [("smali", smali), ("java", java)]
+        for split in dex:
+            if split == base:
+                continue
+            split_dest = split_smali / split.stem
+            rc = command(APKTOOL + ["d", "-f", "--no-res", "-o", str(split_dest), str(split)],
+                         logs / ("apktool-" + split.stem + ".log"))
+            if rc:
+                report["warnings"].append("Could not decode split " + split.name + "; see apktool log")
+            else:
+                paths.append(("split-smali/" + split.stem, split_dest))
         if dex:
             rc = command(JADX + ["-d", str(java), *map(str, dex)], logs / "jadx.log")
             if rc:
@@ -190,9 +202,9 @@ def main():
             report["warnings"].append("No classes.dex found in supplied APK files")
         extracted = pull_bundles(apks, bundles)
         report["hermes_or_js_bundles"] = [str(file.relative_to(bundles)) for file in extracted]
-        copied = review_candidates([("smali", smali), ("java", java)], review)
+        copied = review_candidates(paths, review)
         report["review_files"] = copied
-        report["string_matches"] = scan_tokens([("smali", smali), ("java", java)])
+        report["string_matches"] = scan_tokens(paths)
         (review / "REPORT.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
         # Manifest may help check soft-input handling.
         manifest = smali / "AndroidManifest.xml"
@@ -202,7 +214,8 @@ def main():
         if zip_path.exists():
             zip_path.unlink()
         pack_review(review, bundles, zip_path)
-        print("Full smali:", smali)
+        print("Base smali:", smali)
+        print("Split smali:", split_smali)
         print("Full Java:", java)
         print("Targeted review ZIP:", zip_path)
         print("Review files:", len(copied), "bundles:", len(extracted))
