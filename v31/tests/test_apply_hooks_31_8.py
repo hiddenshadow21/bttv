@@ -208,6 +208,19 @@ class Tests(unittest.TestCase):
         self.assertIn('VerticalChat318;->onChannel', (self.root / 'smali_classes6/tv/twitch/android/shared/one/chat/VerticalTheatreOneChatFragment.smali').read_text())
 
 
+    def test_keyboard_listener_uses_real_smali_method_name_and_observable_logs(self):
+        # The actual 31.8.0 MiniPlayerController.smali declares
+        # .method public final isMinimized()Z; JADX misleadingly renders
+        # this Kotlin getter as getMinimized() in Java output.
+        helper = (SCRIPT.parents[1] / 'mod/app/src/main/java/bttv/'
+                  'ChatKeyboardRemeasure318.java').read_text(encoding='utf-8')
+        self.assertIn('getMethod("isMinimized")', helper)
+        self.assertNotIn('getMethod("getMinimized")', helper)
+        self.assertIn('install invoked; root=', helper)
+        self.assertIn('theatre layout changed: height=', helper)
+        self.assertIn('requesting RN remeasure', helper)
+        self.assertNotIn('!nowIme.booleanValue() && !previousIme.booleanValue()', helper)
+
     def test_keyboard_hook_is_on_theatre_only_and_preserves_registers(self):
         port.apply(self.root)
         path = self.root / (
