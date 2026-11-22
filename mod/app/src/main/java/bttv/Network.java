@@ -93,7 +93,7 @@ public final class Network {
         if (!IN_FLIGHT.add(key)) return;
         FINISHED_REQUESTS.remove(key);
         Log.i(TAG, "Catalog request scheduled: provider=" + source.name()
-                + ", scope=" + (channel == GLOBAL_CHANNEL_ID ? "global" : "channel"));
+                + ", channel=" + channel);
         try {
             IO.execute(new Runnable() {
                 @Override public void run() {
@@ -128,12 +128,19 @@ public final class Network {
                                 default: throw new IllegalArgumentException("Unknown catalog source");
                             }
                             Log.i(TAG, "Catalog loaded: provider=" + source.name()
-                                    + ", scope=channel, count=" + count);
+                                    + ", channel=" + channel + ", count=" + count);
                         }
                     } catch (Throwable e) {
-                        // Network and provider schema changes are visible, not silently ignored.
-                        Log.e(TAG, "Catalog fetch failed: provider=" + source.name()
-                                + ", scope=" + (channel == GLOBAL_CHANNEL_ID ? "global" : "channel"), e);
+                        if (source == Emotes.Source.STV && channel > 0
+                                && e instanceof IOException && "Catalog HTTP 404".equals(e.getMessage())) {
+                            // A 404 can be transient while a channel switches or
+                            // the provider updates its user mapping. Do not cache
+                            // it: successful retries were observed on-device.
+                            Log.i(TAG, "No 7TV channel catalog for " + channel + " (HTTP 404; retry allowed)");
+                        } else {
+                            Log.e(TAG, "Catalog fetch failed: provider=" + source.name()
+                                    + ", channel=" + channel, e);
+                        }
                     } finally {
                         FINISHED_REQUESTS.add(key);
                         IN_FLIGHT.remove(key);

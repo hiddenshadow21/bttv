@@ -249,6 +249,7 @@ public class Hooks {
                 }
             }
             String body = RNNetwork.readBody(data);
+            RNEmoteMenu.observeChannelQuery(body);
             if (RNEmoteCard.intercept(module, url, id, body)) {
                 return true;
             }
@@ -287,6 +288,15 @@ public class Hooks {
         } catch (Throwable t) {
             Log.e(TAG, "text: ", t);
             return text;
+        }
+    }
+
+    /** Native ReactTextViewManager receives EmoteCard labels here. */
+    public static void onReactNativeText(android.view.View view) {
+        try {
+            RNEmoteCard.onNativeCardText(view);
+        } catch (Throwable t) {
+            Log.e(TAG, "onReactNativeText: ", t);
         }
     }
 

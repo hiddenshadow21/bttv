@@ -12,12 +12,12 @@ import tv.twitch.android.models.channel.ChannelModel;
 import tv.twitch.android.models.streams.StreamModel;
 
 public class Data {
-    public static int currentBroadcasterId = -1;
+    public static volatile int currentBroadcasterId = -1;
     public static Context ctx;
 
     public static final HashMap<String, Integer> backgrounds = new HashMap<>(3);
 
-    public static String currentBroadcasterName = null;
+    public static volatile String currentBroadcasterName = null;
 
     public static String getBttvVersion(Context context) {
         if (context == null) {
@@ -39,6 +39,8 @@ public class Data {
     }
 
     public static void setCurrentBroadcasterId(int id) {
+        if (id <= 0) return;
+        if (currentBroadcasterId == id) return;
         Log.i("LBTTVSetBroadcasterId", currentBroadcasterId + " -> " + id);
         Data.currentBroadcasterId = id;
         Emotes.ensureChannelEmotes(ctx, id);
